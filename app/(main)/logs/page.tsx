@@ -1,8 +1,200 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { CharacterType } from '@/lib/types'
+
+interface Profile {
+  id: string
+  username: string
+  character_type: CharacterType
+}
+
+interface WorkLog {
+  id: string
+  date: string
+  content: string
+  created_at: string
+  user_id: string
+  profiles: Profile
+}
+
 export default function LogsPage() {
+  const [logs, setLogs] = useState<WorkLog[]>([])
+  const [users, setUsers] = useState<Profile[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  
+  // Filter states
+  const [selectedUserId, setSelectedUserId] = useState<string>('')
+  const [startDate, setStartDate] = useState<string>('')
+  const [endDate, setEndDate] = useState<string>('')
+
+  useEffect(() => {
+    fetchLogs()
+  }, [selectedUserId, startDate, endDate])
+
+  const fetchLogs = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      // Build query params
+      const params = new URLSearchParams()
+      if (selectedUserId) params.append('userId', selectedUserId)
+      if (startDate) params.append('startDate', startDate)
+      if (endDate) params.append('endDate', endDate)
+      
+      const response = await fetch(`/api/team-logs?${params}`)
+      if (!response.ok) throw new Error('Failed to fetch logs')
+      
+      const data = await response.json()
+      setLogs(data.logs)
+      setUsers(data.users)
+    } catch (err) {
+      setError('업무일지를 불러오는데 실패했습니다.')
+      console.error('Error fetching logs:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const clearFilters = () => {
+    setSelectedUserId('')
+    setStartDate('')
+    setEndDate('')
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'short'
+    })
+  }
+
+  const getCharacterEmoji = (characterType: CharacterType) => {
+    const emojis = {
+      character1: '🔴',
+      character2: '🔵',
+      character3: '🟢',
+      character4: '🟣'
+    }
+    return emojis[characterType] || '⚪'
+  }
+
+  if (loading && logs.length === 0) {
+    return (
+      <div className="p-6">
+        <h2 className="text-2xl font-bold mb-6">업무일지</h2>
+        <div className="space-y-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-gray-100 rounded-lg h-32 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-4">업무일지</h2>
-      <p>업무일지가 여기에 표시됩니다.</p>
+    <div className="p-6 max-w-6xl mx-auto">
+      <h2 className="text-2xl font-bold mb-6">업무일지</h2>
+      
+      {/* Filters */}
+      <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">팀원</label>
+            <select
+              value={selectedUserId}
+              onChange={(e) => setSelectedUserId(e.target.value)}
+              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">전체</option>
+              {users.map(user => (
+                <option key={user.id} value={user.id}>
+                  {getCharacterEmoji(user.character_type)} {user.username}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">시작일</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">종료일</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          
+          <div className="flex items-end">
+            <button
+              onClick={clearFilters}
+              className="w-full p-2 text-gray-600 hover:text-gray-800 border rounded-lg hover:bg-gray-50"
+            >
+              필터 초기화
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Error message */}
+      {error && (
+        <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-6">
+          {error}
+        </div>
+      )}
+
+      {/* Logs list */}
+      <div className="space-y-4">
+        {logs.length === 0 ? (
+          <div className="bg-gray-50 rounded-lg p-12 text-center">
+            <p className="text-gray-500">해당 기간에 작성된 업무일지가 없습니다.</p>
+          </div>
+        ) : (
+          logs.map(log => (
+            <div key={log.id} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{getCharacterEmoji(log.profiles.character_type)}</span>
+                    <div>
+                      <h3 className="font-semibold">{log.profiles.username}</h3>
+                      <p className="text-sm text-gray-600">{formatDate(log.date)}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="prose prose-sm max-w-none">
+                  <pre className="whitespace-pre-wrap font-sans text-gray-700 bg-gray-50 p-4 rounded-lg overflow-auto max-h-96">
+                    {log.content}
+                  </pre>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Loading more indicator */}
+      {loading && logs.length > 0 && (
+        <div className="text-center py-4">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      )}
     </div>
   )
 }
