@@ -8,8 +8,12 @@ export async function POST(request: NextRequest) {
     
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
+    console.log('API Status POST - User:', user?.id)
+    console.log('API Status POST - Auth Error:', authError)
+    
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      console.log('API Status POST - Unauthorized')
+      return NextResponse.json({ error: 'Unauthorized', authError: authError?.message }, { status: 401 })
     }
 
     // Get request body
@@ -60,7 +64,12 @@ export async function POST(request: NextRequest) {
           .eq('id', openSession.id)
 
         if (sessionError) {
-          console.error('Error updating work session:', sessionError)
+          console.error('Error updating work session - Full details:', sessionError)
+          console.error('Error updating work session - Message:', sessionError.message)
+          console.error('Error updating work session - Code:', sessionError.code)
+          console.error('Error updating work session - Details:', sessionError.details)
+          console.error('Error updating work session - Hint:', sessionError.hint)
+          // Don't return here, continue with status update
         }
 
         // Update total work hours in profile
@@ -75,13 +84,21 @@ export async function POST(request: NextRequest) {
           const newTotalHours = (profile.total_work_hours || 0) + hoursWorked
           const newLevel = Math.floor(newTotalHours / 8) + 1
 
-          await supabase
+          const { error: profileError } = await supabase
             .from('profiles')
             .update({
               total_work_hours: newTotalHours,
               level: newLevel
             })
             .eq('id', user.id)
+
+          if (profileError) {
+            console.error('Error updating profile - Full details:', profileError)
+            console.error('Error updating profile - Message:', profileError.message)
+            console.error('Error updating profile - Code:', profileError.code)
+            console.error('Error updating profile - Details:', profileError.details)
+            console.error('Error updating profile - Hint:', profileError.hint)
+          }
         }
       }
     } else if (status === 'working' && previousStatus !== 'working') {
@@ -95,21 +112,56 @@ export async function POST(request: NextRequest) {
         })
 
       if (sessionError) {
-        console.error('Error creating work session:', sessionError)
+        console.error('Error creating work session - Full details:', sessionError)
+        console.error('Error creating work session - Message:', sessionError.message)
+        console.error('Error creating work session - Code:', sessionError.code)
+        console.error('Error creating work session - Details:', sessionError.details)
+        console.error('Error creating work session - Hint:', sessionError.hint)
+        // Don't return here, continue with status update
       }
     }
 
-    // Update user status
-    const { error: statusError } = await supabase
+    // First check if user status exists
+    const { data: existingStatus } = await supabase
       .from('user_status')
-      .update({
-        status,
-        last_seen: now
-      })
+      .select('user_id')
       .eq('user_id', user.id)
+      .single()
+
+    let statusError
+    if (existingStatus) {
+      // Update existing status
+      const { error } = await supabase
+        .from('user_status')
+        .update({
+          status,
+          last_updated: now
+        })
+        .eq('user_id', user.id)
+      statusError = error
+    } else {
+      // Insert new status
+      const { error } = await supabase
+        .from('user_status')
+        .insert({
+          user_id: user.id,
+          status,
+          last_updated: now
+        })
+      statusError = error
+    }
 
     if (statusError) {
-      return NextResponse.json({ error: 'Failed to update status' }, { status: 500 })
+      console.error('Status update error - Full details:', statusError)
+      console.error('Status update error - Message:', statusError.message)
+      console.error('Status update error - Code:', statusError.code)
+      console.error('Status update error - Details:', statusError.details)
+      console.error('Status update error - Hint:', statusError.hint)
+      return NextResponse.json({ 
+        error: 'Failed to update status', 
+        details: statusError.message,
+        code: statusError.code 
+      }, { status: 500 })
     }
 
     return NextResponse.json({ 
@@ -120,26 +172,39 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Status update error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('API Status POST - Catch block error:', error)
+    console.error('Error type:', typeof error)
+    console.error('Error name:', error instanceof Error ? error.name : 'Unknown')
+    console.error('Error message:', error instanceof Error ? error.message : 'Unknown')
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }
 
 // GET endpoint to fetch current status
 export async function GET(request: NextRequest) {
   try {
+    console.log('API Status GET - Creating Supabase client...')
     const supabase = await createClient()
     
+    console.log('API Status GET - Getting user...')
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
+    console.log('API Status GET - User:', user?.id)
+    console.log('API Status GET - Auth Error:', authError)
+    
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      console.log('API Status GET - Unauthorized')
+      return NextResponse.json({ error: 'Unauthorized', authError: authError?.message }, { status: 401 })
     }
 
     // Get user status
     const { data: userStatus, error } = await supabase
       .from('user_status')
-      .select('status, last_seen')
+      .select('status, last_updated')
       .eq('user_id', user.id)
       .single()
 
@@ -160,12 +225,17 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       status: userStatus?.status || 'home',
-      lastSeen: userStatus?.last_seen,
+      lastUpdated: userStatus?.last_updated,
       todaySession
     })
 
   } catch (error) {
     console.error('Status fetch error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Error type:', typeof error)
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }

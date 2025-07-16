@@ -90,6 +90,12 @@ export default function MainLayout({
                 >
                   통계
                 </Link>
+                <Link
+                  href="/template"
+                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-gray-700"
+                >
+                  템플릿
+                </Link>
               </div>
             </div>
             <div className="flex items-center space-x-4">

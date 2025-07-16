@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Image from 'next/image'
 import { CharacterType, UserStatus } from '@/lib/types'
 
@@ -9,10 +9,12 @@ interface CharacterProps {
   status: UserStatus
   position: { x: number; y: number }
   username: string
+  isOnline?: boolean
 }
 
-export default function Character({ characterType, status, position, username }: CharacterProps) {
+export default function Character({ characterType, status, position, username, isOnline = true }: CharacterProps) {
   const [currentFrame, setCurrentFrame] = useState(1)
+  const [imageError, setImageError] = useState(false)
 
   // Toggle between frame 1 and 2 every 500ms for animation
   useEffect(() => {
@@ -23,33 +25,57 @@ export default function Character({ characterType, status, position, username }:
     return () => clearInterval(interval)
   }, [])
 
-  // Build the image path
-  const imagePath = `/characters/${characterType}/${status}_${currentFrame}.png`
+  // Reset error state when characterType or status changes
+  useEffect(() => {
+    setImageError(false)
+  }, [characterType, status])
+
+  // Build the image path with null check
+  const imagePath = characterType 
+    ? `/characters/character${characterType}/${status}_${currentFrame}.png`
+    : `/characters/character1/${status}_${currentFrame}.png` // Default to character1 if null
+  
+  // Debug log
+  useEffect(() => {
+    console.log(`Character ${username}: status=${status}, characterType=${characterType}, imagePath=${imagePath}`)
+  }, [status, characterType, username, imagePath])
+
+  // Handle image load error
+  const handleImageError = useCallback(() => {
+    setImageError(true)
+  }, [])
 
   return (
     <div
-      className="absolute flex flex-col items-center transition-all duration-1000 ease-in-out"
+      className={`flex flex-col items-center justify-center transition-all duration-1000 ease-in-out z-10 pointer-events-auto ${!isOnline ? 'opacity-50' : ''}`}
       style={{
         gridColumn: position.x,
         gridRow: position.y,
-        transform: 'translate(-50%, -50%)',
-        left: '50%',
-        top: '50%',
       }}
     >
       {/* Character image */}
       <div className="relative w-16 h-16">
-        <Image
-          src={imagePath}
-          alt={`${username} - ${status}`}
-          width={64}
-          height={64}
-          className="pixelated"
-          style={{
-            imageRendering: 'pixelated',
-          }}
-          unoptimized
-        />
+        {!imageError ? (
+          <Image
+            src={imagePath}
+            alt={`${username} - ${status}`}
+            width={64}
+            height={64}
+            className="pixelated"
+            style={{
+              imageRendering: 'pixelated',
+              width: 'auto',
+              height: 'auto',
+            }}
+            priority
+            unoptimized
+            onError={handleImageError}
+          />
+        ) : (
+          <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+            <span className="text-2xl">👤</span>
+          </div>
+        )}
       </div>
       
       {/* Username */}

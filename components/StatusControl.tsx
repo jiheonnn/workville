@@ -21,18 +21,30 @@ export default function StatusControl() {
   }, [])
 
   const handleStatusChange = async (newStatus: UserStatus) => {
-    if (isLoading || currentUserStatus === newStatus) return
+    console.log('handleStatusChange called with:', newStatus)
+    console.log('Current status:', currentUserStatus)
+    console.log('isLoading:', isLoading)
+    
+    if (isLoading || currentUserStatus === newStatus) {
+      console.log('Returning early - isLoading or same status')
+      return
+    }
     
     // If changing from working to home, show work log modal
     if (currentUserStatus === 'working' && newStatus === 'home') {
+      console.log('Showing work log modal')
       setShowWorkLogModal(true)
       return
     }
     
+    console.log('Calling updateMyStatus...')
     const success = await updateMyStatus(newStatus)
+    console.log('updateMyStatus result:', success)
     if (success) {
       // You could add a toast notification here
       console.log(`Status changed to ${newStatus}`)
+    } else {
+      console.error('Failed to update status')
     }
   }
 

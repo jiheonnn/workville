@@ -1,9 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Character from './Character'
 import GridCell from './GridCell'
 import { UserStatus, CharacterType } from '@/lib/types'
+import { createClient } from '@/lib/supabase/client'
+import { useRealtimePresence } from '@/hooks/useRealtimePresence'
+import { useVillageStore } from '@/lib/stores/village-store'
 
 interface CharacterData {
   id: string
@@ -15,6 +18,11 @@ interface CharacterData {
 
 export default function VillageMap() {
   const [characters, setCharacters] = useState<CharacterData[]>([])
+  const channelRef = useRef<any>(null)
+  const { onlineUsers, currentUserStatus } = useVillageStore()
+  
+  // Initialize presence tracking
+  useRealtimePresence()
 
   // Grid system: 9x7
   const gridCols = 9
@@ -65,74 +73,138 @@ export default function VillageMap() {
     }
   }
 
-  // Fetch users and their statuses from Supabase
-  useEffect(() => {
-    const fetchUsers = async () => {
-      const { createClient } = await import('@/lib/supabase/client')
-      const supabase = createClient()
+  // Fetch users function - defined outside useEffect to avoid stale closure
+  const fetchUsers = useCallback(async () => {
+    console.log('fetchUsers called')
+    const supabase = createClient()
 
-      // Get all users with their profiles and statuses
-      const { data: users, error } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          username,
-          character_type,
-          user_status!inner (
-            status
-          )
-        `)
+    // Get all users with their profiles and statuses
+    const { data: users, error } = await supabase
+      .from('profiles')
+      .select(`
+        id,
+        username,
+        character_type,
+        user_status (
+          status
+        )
+      `)
 
-      if (error) {
-        console.error('Error fetching users:', error)
-        return
+    if (error) {
+      console.error('Error fetching users:', error)
+      return
+    }
+
+    console.log('Fetched users:', users)
+
+    if (users) {
+      // First, filter valid users
+      const validUsers = users.filter(user => user.character_type !== null)
+      
+      // Group users by status to assign positions correctly
+      const usersByStatus: Record<UserStatus, typeof validUsers> = {
+        working: [],
+        home: [],
+        break: []
       }
-
-      if (users) {
-        const characterData: CharacterData[] = users.map((user, index) => ({
+      
+      validUsers.forEach(user => {
+        console.log(`User ${user.username} - user_status:`, user.user_status)
+        console.log(`Is array:`, Array.isArray(user.user_status))
+        
+        // Handle both array and object cases
+        let status: UserStatus = 'home'
+        if (user.user_status) {
+          if (Array.isArray(user.user_status) && user.user_status.length > 0) {
+            status = user.user_status[0].status
+          } else if (typeof user.user_status === 'object' && 'status' in user.user_status) {
+            status = user.user_status.status as UserStatus
+          }
+        }
+        
+        console.log(`Determined status: ${status}`)
+        usersByStatus[status].push(user)
+      })
+      
+      // Map users with correct position indices
+      const characterData: CharacterData[] = validUsers.map((user) => {
+        // Handle both array and object cases
+        let status: UserStatus = 'home'
+        if (user.user_status) {
+          if (Array.isArray(user.user_status) && user.user_status.length > 0) {
+            status = user.user_status[0].status
+          } else if (typeof user.user_status === 'object' && 'status' in user.user_status) {
+            status = user.user_status.status as UserStatus
+          }
+        }
+        
+        // Find the index of this user within their status group
+        const statusIndex = usersByStatus[status].findIndex(u => u.id === user.id)
+        const position = getPositionForStatus(status, statusIndex)
+        
+        console.log(`User ${user.username}: status=${status}, statusIndex=${statusIndex}, position=`, position)
+        
+        return {
           id: user.id,
           username: user.username || 'Anonymous',
           characterType: user.character_type as CharacterType,
-          status: user.user_status[0]?.status || 'home',
-          position: getPositionForStatus(user.user_status[0]?.status || 'home', index),
-        }))
-        setCharacters(characterData)
-      }
+          status: status,
+          position: position,
+        }
+      })
+      
+      console.log('Setting characters:', characterData)
+      setCharacters(characterData)
     }
+  }, [])
 
+  // Set up realtime subscription and initial fetch
+  useEffect(() => {
+    console.log('VillageMap useEffect running')
+    const supabase = createClient()
+
+    // Initial fetch
     fetchUsers()
 
     // Set up realtime subscription
-    const setupRealtimeSubscription = async () => {
-      const { createClient } = await import('@/lib/supabase/client')
-      const supabase = createClient()
+    const channel = supabase
+      .channel('user-status-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_status',
+        },
+        async (payload) => {
+          console.log('Realtime event received:', payload)
+          console.log('Event type:', payload.eventType)
+          console.log('Old record:', payload.old)
+          console.log('New record:', payload.new)
+          // Refetch users when status changes
+          await fetchUsers()
+        }
+      )
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status)
+      })
 
-      const channel = supabase
-        .channel('user-status-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'user_status',
-          },
-          (payload) => {
-            // Refetch users when status changes
-            fetchUsers()
-          }
-        )
-        .subscribe()
+    channelRef.current = channel
 
-      return () => {
-        supabase.removeChannel(channel)
+    // Cleanup
+    return () => {
+      if (channelRef.current) {
+        console.log('Cleaning up realtime subscription')
+        supabase.removeChannel(channelRef.current)
       }
     }
+  }, [fetchUsers])
 
-    const cleanup = setupRealtimeSubscription()
-    return () => {
-      cleanup.then(fn => fn && fn())
-    }
-  }, [])
+  // Refetch users when current user status changes
+  useEffect(() => {
+    console.log('Current user status changed to:', currentUserStatus)
+    fetchUsers()
+  }, [currentUserStatus, fetchUsers])
 
   return (
     <div className="w-full h-full bg-green-50 p-8">
@@ -140,45 +212,56 @@ export default function VillageMap() {
         <h2 className="text-2xl font-bold mb-6 text-center">Workville</h2>
         
         <div 
-          className="relative grid grid-cols-9 grid-rows-7 gap-1 w-full aspect-[9/7] bg-green-100 p-4 rounded-lg"
+          className="relative w-full aspect-[9/7] bg-green-100 p-4 rounded-lg"
           style={{
             minHeight: '500px',
           }}
         >
-          {/* Render grid cells */}
-          {Array.from({ length: gridRows }).map((_, row) =>
-            Array.from({ length: gridCols }).map((_, col) => {
-              const x = col + 1
-              const y = row + 1
-              
-              // Check if this is a special cell
-              let cellType = 'grass'
-              const house = specialCells.houses.find(h => h.x === x && h.y === y)
-              if (house) cellType = 'house'
-              else if (x === specialCells.office.x && y === specialCells.office.y) cellType = 'office'
-              else if (x === specialCells.breakArea.x && y === specialCells.breakArea.y) cellType = 'break'
+          {/* Grid layer */}
+          <div className="grid grid-cols-9 grid-rows-7 gap-1 w-full h-full">
+            {/* Render grid cells */}
+            {Array.from({ length: gridRows }).map((_, row) =>
+              Array.from({ length: gridCols }).map((_, col) => {
+                const x = col + 1
+                const y = row + 1
+                
+                // Check if this is a special cell
+                let cellType: 'grass' | 'house' | 'office' | 'break' = 'grass'
+                const house = specialCells.houses.find(h => h.x === x && h.y === y)
+                if (house) cellType = 'house'
+                else if (x === specialCells.office.x && y === specialCells.office.y) cellType = 'office'
+                else if (x === specialCells.breakArea.x && y === specialCells.breakArea.y) cellType = 'break'
 
+                return (
+                  <GridCell
+                    key={`${x}-${y}`}
+                    x={x}
+                    y={y}
+                    type={cellType}
+                  />
+                )
+              })
+            )}
+          </div>
+
+          {/* Character layer */}
+          <div className="absolute inset-0 grid grid-cols-9 grid-rows-7 gap-1 p-0 pointer-events-none">
+            {/* Render characters */}
+            {characters.map((character) => {
+              const isOnline = onlineUsers.has(character.id)
+              console.log(`Rendering ${character.username}: isOnline=${isOnline}, onlineUsers=`, Array.from(onlineUsers))
               return (
-                <GridCell
-                  key={`${x}-${y}`}
-                  x={x}
-                  y={y}
-                  type={cellType}
+                <Character
+                  key={character.id}
+                  characterType={character.characterType}
+                  status={character.status}
+                  position={character.position}
+                  username={character.username}
+                  isOnline={isOnline}
                 />
               )
-            })
-          )}
-
-          {/* Render characters */}
-          {characters.map((character) => (
-            <Character
-              key={character.id}
-              characterType={character.characterType}
-              status={character.status}
-              position={character.position}
-              username={character.username}
-            />
-          ))}
+            })}
+          </div>
         </div>
       </div>
     </div>

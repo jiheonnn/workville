@@ -22,6 +22,7 @@ interface VillageStore {
   todaySession: WorkSession | null
   isLoading: boolean
   error: string | null
+  onlineUsers: Set<string>
 
   // Actions
   setUsers: (users: UserWithStatus[]) => void
@@ -30,6 +31,8 @@ interface VillageStore {
   setTodaySession: (session: WorkSession | null) => void
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
+  setOnlineUsers: (userIds: string[]) => void
+  removeOnlineUser: (userId: string) => void
 
   // API Actions
   fetchCurrentStatus: () => Promise<void>
@@ -43,6 +46,7 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
   todaySession: null,
   isLoading: false,
   error: null,
+  onlineUsers: new Set(),
 
   // Basic setters
   setUsers: (users) => {
@@ -68,6 +72,18 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
   setTodaySession: (session) => set({ todaySession: session }),
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
+
+  setOnlineUsers: (userIds) => {
+    set({ onlineUsers: new Set(userIds) })
+  },
+
+  removeOnlineUser: (userId) => {
+    set((state) => {
+      const onlineUsers = new Set(state.onlineUsers)
+      onlineUsers.delete(userId)
+      return { onlineUsers }
+    })
+  },
 
   // Fetch current user status
   fetchCurrentStatus: async () => {
@@ -95,9 +111,11 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
 
   // Update current user status
   updateMyStatus: async (status: UserStatus) => {
+    console.log('village-store: updateMyStatus called with:', status)
     try {
       set({ isLoading: true, error: null })
 
+      console.log('village-store: Making API request to /api/status')
       const response = await fetch('/api/status', {
         method: 'POST',
         headers: {
@@ -106,27 +124,37 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
         body: JSON.stringify({ status }),
       })
 
+      console.log('village-store: API response status:', response.status)
+      
       if (!response.ok) {
-        throw new Error('Failed to update status')
+        const errorData = await response.json()
+        console.error('village-store: API error:', errorData)
+        throw new Error(errorData.error || 'Failed to update status')
       }
 
       const data = await response.json()
+      console.log('village-store: API response data:', data)
       
       // Update local state
       set({ 
         currentUserStatus: status,
         isLoading: false 
       })
+      
+      console.log('village-store: Local state updated to:', status)
 
       // If checking out, trigger a refetch to get updated session data
       if (data.previousStatus === 'working' && status !== 'working') {
+        console.log('village-store: Triggering refetch after checkout')
         setTimeout(() => {
           get().fetchCurrentStatus()
         }, 500)
       }
 
+      console.log('village-store: Status update successful')
       return true
     } catch (error) {
+      console.error('village-store: Error updating status:', error)
       set({ 
         error: error instanceof Error ? error.message : 'Unknown error',
         isLoading: false 

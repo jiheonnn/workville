@@ -30,7 +30,12 @@ export async function middleware(request: NextRequest) {
 
   const {
     data: { user },
+    error: authError
   } = await supabase.auth.getUser()
+
+  console.log('Middleware - Path:', request.nextUrl.pathname)
+  console.log('Middleware - User:', user?.id)
+  console.log('Middleware - Auth Error:', authError)
 
   // 보호된 라우트 체크
   if (
@@ -63,7 +68,7 @@ export async function middleware(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    if (profile && !profile.character_type && request.nextUrl.pathname !== '/character-select') {
+    if (!profile || !profile.character_type) {
       const url = request.nextUrl.clone()
       url.pathname = '/character-select'
       return NextResponse.redirect(url)

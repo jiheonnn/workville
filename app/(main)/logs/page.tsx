@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { CharacterType } from '@/lib/types'
+import CalendarView from '@/components/work-log/CalendarView'
+import { Button } from '@/components/ui/button'
 
 interface Profile {
   id: string
@@ -23,11 +25,13 @@ export default function LogsPage() {
   const [users, setUsers] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
   
   // Filter states
   const [selectedUserId, setSelectedUserId] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | undefined>()
 
   useEffect(() => {
     fetchLogs()
@@ -62,6 +66,14 @@ export default function LogsPage() {
     setSelectedUserId('')
     setStartDate('')
     setEndDate('')
+    setSelectedCalendarDate(undefined)
+  }
+
+  const handleCalendarDateSelect = (date: Date) => {
+    setSelectedCalendarDate(date)
+    const dateStr = date.toISOString().split('T')[0]
+    setStartDate(dateStr)
+    setEndDate(dateStr)
   }
 
   const formatDate = (dateString: string) => {
@@ -75,7 +87,7 @@ export default function LogsPage() {
   }
 
   const getCharacterEmoji = (characterType: CharacterType) => {
-    const emojis = {
+    const emojis: Record<CharacterType, string> = {
       character1: '🔴',
       character2: '🔵',
       character3: '🟢',
@@ -99,7 +111,25 @@ export default function LogsPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">업무일지</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">업무일지</h2>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setViewMode('list')}
+            variant={viewMode === 'list' ? 'default' : 'outline'}
+            size="sm"
+          >
+            목록 보기
+          </Button>
+          <Button
+            onClick={() => setViewMode('calendar')}
+            variant={viewMode === 'calendar' ? 'default' : 'outline'}
+            size="sm"
+          >
+            캘린더 보기
+          </Button>
+        </div>
+      </div>
       
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
@@ -158,36 +188,86 @@ export default function LogsPage() {
         </div>
       )}
 
-      {/* Logs list */}
-      <div className="space-y-4">
-        {logs.length === 0 ? (
-          <div className="bg-gray-50 rounded-lg p-12 text-center">
-            <p className="text-gray-500">해당 기간에 작성된 업무일지가 없습니다.</p>
+      {/* Calendar or List View */}
+      {viewMode === 'calendar' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1">
+            <CalendarView 
+              logs={logs}
+              onDateSelect={handleCalendarDateSelect}
+              selectedDate={selectedCalendarDate}
+            />
           </div>
-        ) : (
-          logs.map(log => (
-            <div key={log.id} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{getCharacterEmoji(log.profiles.character_type)}</span>
-                    <div>
-                      <h3 className="font-semibold">{log.profiles.username}</h3>
-                      <p className="text-sm text-gray-600">{formatDate(log.date)}</p>
+          <div className="lg:col-span-2 space-y-4">
+            <h3 className="font-semibold text-lg">
+              {selectedCalendarDate 
+                ? formatDate(selectedCalendarDate.toISOString())
+                : '날짜를 선택하세요'}
+            </h3>
+            {selectedCalendarDate && (
+              logs.filter(log => log.date === selectedCalendarDate.toISOString().split('T')[0])
+                .length === 0 ? (
+                  <div className="bg-gray-50 rounded-lg p-12 text-center">
+                    <p className="text-gray-500">이 날짜에 작성된 업무일지가 없습니다.</p>
+                  </div>
+                ) : (
+                  logs.filter(log => log.date === selectedCalendarDate.toISOString().split('T')[0])
+                    .map(log => (
+                      <div key={log.id} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
+                        <div className="p-6">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl">{getCharacterEmoji(log.profiles.character_type)}</span>
+                              <div>
+                                <h3 className="font-semibold">{log.profiles.username}</h3>
+                                <p className="text-sm text-gray-600">{formatDate(log.date)}</p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="prose prose-sm max-w-none">
+                            <pre className="whitespace-pre-wrap font-sans text-gray-700 bg-gray-50 p-4 rounded-lg overflow-auto max-h-96">
+                              {log.content}
+                            </pre>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                )
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {logs.length === 0 ? (
+            <div className="bg-gray-50 rounded-lg p-12 text-center">
+              <p className="text-gray-500">해당 기간에 작성된 업무일지가 없습니다.</p>
+            </div>
+          ) : (
+            logs.map(log => (
+              <div key={log.id} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{getCharacterEmoji(log.profiles.character_type)}</span>
+                      <div>
+                        <h3 className="font-semibold">{log.profiles.username}</h3>
+                        <p className="text-sm text-gray-600">{formatDate(log.date)}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                <div className="prose prose-sm max-w-none">
-                  <pre className="whitespace-pre-wrap font-sans text-gray-700 bg-gray-50 p-4 rounded-lg overflow-auto max-h-96">
-                    {log.content}
-                  </pre>
+                  
+                  <div className="prose prose-sm max-w-none">
+                    <pre className="whitespace-pre-wrap font-sans text-gray-700 bg-gray-50 p-4 rounded-lg overflow-auto max-h-96">
+                      {log.content}
+                    </pre>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
-        )}
-      </div>
+            ))
+          )}
+        </div>
+      )}
 
       {/* Loading more indicator */}
       {loading && logs.length > 0 && (

@@ -82,7 +82,7 @@ When working with the database, use the Supabase MCP tool for direct database op
 Required environment variables in `.env.local`:
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://ostawzicicutfljphyvg.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=[your_anon_key]
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zdGF3emljaWN1dGZsanBoeXZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE5NjU5MzgsImV4cCI6MjA2NzU0MTkzOH0.lOqxVfFKhHAdPtoCcw2ZZXwgVHQm6i74hkuATx9gEEU
 ``` 
 
  # Using Gemini CLI for Large Codebase Analysis

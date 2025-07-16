@@ -31,18 +31,43 @@ export default function SignupPage() {
     setLoading(true)
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/character-select`
+        }
       })
 
       if (error) {
+        console.error('Signup error:', error)
         setError(error.message)
       } else {
-        router.push('/character-select')
-        router.refresh()
+        console.log('Signup response:', data)
+        
+        // 회원가입 성공 후 바로 로그인 시도
+        if (data.user && !data.session) {
+          // 이메일 확인이 필요한 경우 바로 로그인 시도
+          const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          })
+          
+          if (loginError) {
+            console.error('Auto login error:', loginError)
+            setError('회원가입은 완료되었지만 자동 로그인에 실패했습니다. 로그인 페이지에서 다시 시도해주세요.')
+          } else if (loginData.session) {
+            router.push('/character-select')
+            router.refresh()
+          }
+        } else if (data.session) {
+          // 세션이 있으면 바로 character-select로 이동
+          router.push('/character-select')
+          router.refresh()
+        }
       }
     } catch (err) {
+      console.error('Signup exception:', err)
       setError('회원가입 중 오류가 발생했습니다.')
     } finally {
       setLoading(false)
@@ -64,8 +89,8 @@ export default function SignupPage() {
       </div>
       <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
         {error && (
-          <div className="rounded-md bg-red-50 p-4">
-            <p className="text-sm text-red-800">{error}</p>
+          <div className={`rounded-md p-4 ${error.includes('이메일을 확인하여') ? 'bg-blue-50' : 'bg-red-50'}`}>
+            <p className={`text-sm ${error.includes('이메일을 확인하여') ? 'text-blue-800' : 'text-red-800'}`}>{error}</p>
           </div>
         )}
         <div className="space-y-4">
