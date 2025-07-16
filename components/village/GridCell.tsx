@@ -5,16 +5,16 @@ interface GridCellProps {
 }
 
 export default function GridCell({ x, y, type }: GridCellProps) {
-  const getBackgroundColor = () => {
+  const getStyles = () => {
     switch (type) {
       case 'house':
-        return 'bg-yellow-200 border-yellow-400'
+        return 'bg-yellow-100 border-yellow-300 shadow-sm hover:shadow-md transition-shadow duration-200'
       case 'office':
-        return 'bg-blue-200 border-blue-400'
+        return 'bg-blue-100 border-blue-300 shadow-sm hover:shadow-md transition-shadow duration-200'
       case 'break':
-        return 'bg-purple-200 border-purple-400'
+        return 'bg-purple-100 border-purple-300 shadow-sm hover:shadow-md transition-shadow duration-200'
       default:
-        return 'bg-green-200 border-green-300'
+        return 'bg-green-100 border-green-200/50'
     }
   }
 
@@ -33,13 +33,22 @@ export default function GridCell({ x, y, type }: GridCellProps) {
 
   return (
     <div
-      className={`relative rounded border-2 ${getBackgroundColor()} flex items-center justify-center`}
+      className={`
+        relative rounded-lg border-2 ${getStyles()} 
+        flex items-center justify-center
+        ${type !== 'grass' ? 'transform hover:scale-105 transition-transform duration-200 cursor-pointer will-change-transform' : ''}
+      `}
       style={{
         gridColumn: x,
         gridRow: y,
       }}
     >
-      <span className="text-2xl">{getLabel()}</span>
+      <span className={`
+        ${type !== 'grass' ? 'text-3xl' : ''} 
+        ${type !== 'grass' ? 'drop-shadow-md' : ''}
+      `}>
+        {getLabel()}
+      </span>
     </div>
   )
 }

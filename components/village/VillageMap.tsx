@@ -24,6 +24,10 @@ export default function VillageMap() {
   // Initialize presence tracking
   useRealtimePresence()
 
+  // Calculate working and home users
+  const workingCount = characters.filter(char => char.status === 'working').length
+  const homeCount = characters.filter(char => char.status === 'home').length
+
   // Grid system: 9x7
   const gridCols = 9
   const gridRows = 7
@@ -201,66 +205,97 @@ export default function VillageMap() {
   }, [fetchUsers])
 
   // Refetch users when current user status changes
-  useEffect(() => {
-    console.log('Current user status changed to:', currentUserStatus)
-    fetchUsers()
-  }, [currentUserStatus, fetchUsers])
+  // Removed to prevent duplicate fetching - realtime subscription handles updates
 
   return (
-    <div className="w-full h-full bg-green-50 p-8">
+    <div className="w-full h-full">
       <div className="max-w-6xl mx-auto">
-        <h2 className="text-2xl font-bold mb-6 text-center">Workville</h2>
-        
-        <div 
-          className="relative w-full aspect-[9/7] bg-green-100 p-4 rounded-lg"
-          style={{
-            minHeight: '500px',
-          }}
-        >
-          {/* Grid layer */}
-          <div className="grid grid-cols-9 grid-rows-7 gap-1 w-full h-full">
-            {/* Render grid cells */}
-            {Array.from({ length: gridRows }).map((_, row) =>
-              Array.from({ length: gridCols }).map((_, col) => {
-                const x = col + 1
-                const y = row + 1
-                
-                // Check if this is a special cell
-                let cellType: 'grass' | 'house' | 'office' | 'break' = 'grass'
-                const house = specialCells.houses.find(h => h.x === x && h.y === y)
-                if (house) cellType = 'house'
-                else if (x === specialCells.office.x && y === specialCells.office.y) cellType = 'office'
-                else if (x === specialCells.breakArea.x && y === specialCells.breakArea.y) cellType = 'break'
+        <div className="bg-white rounded-2xl shadow-xl p-8 animate-fadeIn">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-3xl font-black bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+              팀원 현황
+            </h2>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm text-gray-600 font-medium">온라인: {workingCount}명</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
+                <span className="text-sm text-gray-600 font-medium">오프라인: {homeCount}명</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="relative rounded-xl overflow-hidden shadow-inner bg-green-50">
+            <div 
+              className="relative w-full aspect-[9/7] p-6"
+              style={{
+                minHeight: '500px',
+              }}
+            >
+              {/* Grid layer */}
+              <div className="grid grid-cols-9 grid-rows-7 gap-1.5 w-full h-full">
+                {/* Render grid cells */}
+                {Array.from({ length: gridRows }).map((_, row) =>
+                  Array.from({ length: gridCols }).map((_, col) => {
+                    const x = col + 1
+                    const y = row + 1
+                    
+                    // Check if this is a special cell
+                    let cellType: 'grass' | 'house' | 'office' | 'break' = 'grass'
+                    const house = specialCells.houses.find(h => h.x === x && h.y === y)
+                    if (house) cellType = 'house'
+                    else if (x === specialCells.office.x && y === specialCells.office.y) cellType = 'office'
+                    else if (x === specialCells.breakArea.x && y === specialCells.breakArea.y) cellType = 'break'
 
-                return (
-                  <GridCell
-                    key={`${x}-${y}`}
-                    x={x}
-                    y={y}
-                    type={cellType}
-                  />
-                )
-              })
-            )}
+                    return (
+                      <GridCell
+                        key={`${x}-${y}`}
+                        x={x}
+                        y={y}
+                        type={cellType}
+                      />
+                    )
+                  })
+                )}
+              </div>
+
+              {/* Character layer */}
+              <div className="absolute inset-0 grid grid-cols-9 grid-rows-7 gap-1.5 p-6 pointer-events-none">
+                {/* Render characters */}
+                {characters.map((character) => {
+                  const isOnline = onlineUsers.has(character.id)
+                  console.log(`Rendering ${character.username}: isOnline=${isOnline}, onlineUsers=`, Array.from(onlineUsers))
+                  return (
+                    <Character
+                      key={character.id}
+                      characterType={character.characterType}
+                      status={character.status}
+                      position={character.position}
+                      username={character.username}
+                      isOnline={isOnline}
+                    />
+                  )
+                })}
+              </div>
+            </div>
           </div>
 
-          {/* Character layer */}
-          <div className="absolute inset-0 grid grid-cols-9 grid-rows-7 gap-1 p-0 pointer-events-none">
-            {/* Render characters */}
-            {characters.map((character) => {
-              const isOnline = onlineUsers.has(character.id)
-              console.log(`Rendering ${character.username}: isOnline=${isOnline}, onlineUsers=`, Array.from(onlineUsers))
-              return (
-                <Character
-                  key={character.id}
-                  characterType={character.characterType}
-                  status={character.status}
-                  position={character.position}
-                  username={character.username}
-                  isOnline={isOnline}
-                />
-              )
-            })}
+          {/* Legend */}
+          <div className="mt-6 flex flex-wrap gap-4 justify-center">
+            <div className="flex items-center space-x-2">
+              <div className="w-10 h-10 bg-yellow-100 rounded-lg border-2 border-yellow-300 shadow-sm"></div>
+              <span className="text-sm text-gray-600 font-medium">집 (홈)</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg border-2 border-blue-300 shadow-sm"></div>
+              <span className="text-sm text-gray-600 font-medium">사무실 (근무중)</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-10 h-10 bg-purple-100 rounded-lg border-2 border-purple-300 shadow-sm"></div>
+              <span className="text-sm text-gray-600 font-medium">휴게실 (휴식중)</span>
+            </div>
           </div>
         </div>
       </div>

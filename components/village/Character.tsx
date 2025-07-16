@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Image from 'next/image'
 import { CharacterType, UserStatus } from '@/lib/types'
 
@@ -13,32 +13,21 @@ interface CharacterProps {
 }
 
 export default function Character({ characterType, status, position, username, isOnline = true }: CharacterProps) {
-  const [currentFrame, setCurrentFrame] = useState(1)
   const [imageError, setImageError] = useState(false)
-
-  // Toggle between frame 1 and 2 every 500ms for animation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentFrame(prev => prev === 1 ? 2 : 1)
-    }, 500)
-
-    return () => clearInterval(interval)
-  }, [])
 
   // Reset error state when characterType or status changes
   useEffect(() => {
     setImageError(false)
   }, [characterType, status])
 
-  // Build the image path with null check
-  const imagePath = characterType 
-    ? `/characters/character${characterType}/${status}_${currentFrame}.png`
-    : `/characters/character1/${status}_${currentFrame}.png` // Default to character1 if null
+  // Build the image paths for both animation frames
+  const imagePath1 = characterType 
+    ? `/characters/character${characterType}/${status}_1.png`
+    : `/characters/character1/${status}_1.png` // Default to character1 if null
   
-  // Debug log
-  useEffect(() => {
-    console.log(`Character ${username}: status=${status}, characterType=${characterType}, imagePath=${imagePath}`)
-  }, [status, characterType, username, imagePath])
+  const imagePath2 = characterType 
+    ? `/characters/character${characterType}/${status}_2.png`
+    : `/characters/character1/${status}_2.png` // Default to character1 if null
 
   // Handle image load error
   const handleImageError = useCallback(() => {
@@ -56,21 +45,30 @@ export default function Character({ characterType, status, position, username, i
       {/* Character image */}
       <div className="relative w-16 h-16">
         {!imageError ? (
-          <Image
-            src={imagePath}
-            alt={`${username} - ${status}`}
-            width={64}
-            height={64}
-            className="pixelated"
-            style={{
-              imageRendering: 'pixelated',
-              width: 'auto',
-              height: 'auto',
-            }}
-            priority
-            unoptimized
-            onError={handleImageError}
-          />
+          <>
+            <Image
+              src={imagePath1}
+              alt={`${username} - ${status}`}
+              width={64}
+              height={64}
+              className="pixelated absolute inset-0 animate-character-frame-1"
+              style={{
+                imageRendering: 'pixelated',
+              }}
+              onError={handleImageError}
+            />
+            <Image
+              src={imagePath2}
+              alt={`${username} - ${status}`}
+              width={64}
+              height={64}
+              className="pixelated absolute inset-0 animate-character-frame-2"
+              style={{
+                imageRendering: 'pixelated',
+              }}
+              onError={handleImageError}
+            />
+          </>
         ) : (
           <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
             <span className="text-2xl">👤</span>

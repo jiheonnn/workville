@@ -36,8 +36,8 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString()
 
     // Handle work session tracking
-    if (previousStatus === 'working' && status !== 'working') {
-      // User is ending work session (going home or taking break)
+    if (previousStatus === 'working' && status === 'home') {
+      // User is ending work session (going home only, not break)
       // Find the open work session
       const { data: openSession } = await supabase
         .from('work_sessions')
@@ -103,22 +103,36 @@ export async function POST(request: NextRequest) {
       }
     } else if (status === 'working' && previousStatus !== 'working') {
       // User is starting work session
-      const { error: sessionError } = await supabase
+      // Check if there's already an open session for today (from break)
+      const today = now.split('T')[0]
+      const { data: existingSession } = await supabase
         .from('work_sessions')
-        .insert({
-          user_id: user.id,
-          check_in_time: now,
-          date: now.split('T')[0] // YYYY-MM-DD format
-        })
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .is('check_out_time', null)
+        .single()
 
-      if (sessionError) {
-        console.error('Error creating work session - Full details:', sessionError)
-        console.error('Error creating work session - Message:', sessionError.message)
-        console.error('Error creating work session - Code:', sessionError.code)
-        console.error('Error creating work session - Details:', sessionError.details)
-        console.error('Error creating work session - Hint:', sessionError.hint)
-        // Don't return here, continue with status update
+      if (!existingSession) {
+        // No open session, create a new one
+        const { error: sessionError } = await supabase
+          .from('work_sessions')
+          .insert({
+            user_id: user.id,
+            check_in_time: now,
+            date: today // YYYY-MM-DD format
+          })
+
+        if (sessionError) {
+          console.error('Error creating work session - Full details:', sessionError)
+          console.error('Error creating work session - Message:', sessionError.message)
+          console.error('Error creating work session - Code:', sessionError.code)
+          console.error('Error creating work session - Details:', sessionError.details)
+          console.error('Error creating work session - Hint:', sessionError.hint)
+          // Don't return here, continue with status update
+        }
       }
+      // If there's an existing session, we just continue with it (no action needed)
     }
 
     // First check if user status exists
@@ -214,14 +228,29 @@ export async function GET(request: NextRequest) {
 
     // Get today's work session if exists
     const today = new Date().toISOString().split('T')[0]
-    const { data: todaySession } = await supabase
+    // First try to get active session (check_out_time is null)
+    let { data: todaySession } = await supabase
       .from('work_sessions')
       .select('check_in_time, check_out_time, duration_minutes')
       .eq('user_id', user.id)
       .eq('date', today)
-      .order('check_in_time', { ascending: false })
-      .limit(1)
+      .is('check_out_time', null)
       .maybeSingle()
+    
+    // If no active session, get the most recent completed session for today
+    if (!todaySession) {
+      const { data: completedSession } = await supabase
+        .from('work_sessions')
+        .select('check_in_time, check_out_time, duration_minutes')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .not('check_out_time', 'is', null)
+        .order('check_out_time', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      
+      todaySession = completedSession
+    }
 
     return NextResponse.json({
       status: userStatus?.status || 'home',

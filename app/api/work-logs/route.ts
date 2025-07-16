@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
     }
 
     // Get request body
@@ -16,10 +16,10 @@ export async function POST(request: NextRequest) {
     const { content } = body
 
     if (!content || typeof content !== 'string') {
-      return NextResponse.json({ error: 'Invalid content' }, { status: 400 })
+      return NextResponse.json({ error: '업무 일지 내용을 입력해주세요.' }, { status: 400 })
     }
 
-    // Create work log
+    // Save work log
     const today = new Date().toISOString().split('T')[0]
     
     // Check if log already exists for today
@@ -39,7 +39,9 @@ export async function POST(request: NextRequest) {
 
       if (updateError) {
         console.error('Error updating work log:', updateError)
-        return NextResponse.json({ error: 'Failed to update work log' }, { status: 500 })
+        return NextResponse.json({ 
+          error: '업무 일지 업데이트에 실패했습니다.' 
+        }, { status: 500 })
       }
     } else {
       // Create new log
@@ -53,7 +55,9 @@ export async function POST(request: NextRequest) {
 
       if (insertError) {
         console.error('Error creating work log:', insertError)
-        return NextResponse.json({ error: 'Failed to create work log' }, { status: 500 })
+        return NextResponse.json({ 
+          error: '업무 일지 생성에 실패했습니다.' 
+        }, { status: 500 })
       }
     }
 

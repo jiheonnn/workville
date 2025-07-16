@@ -112,7 +112,7 @@ export default function LogsPage() {
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">업무일지</h2>
+        <h2 className="text-2xl font-black bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">업무일지</h2>
         <div className="flex gap-2">
           <Button
             onClick={() => setViewMode('list')}
@@ -135,7 +135,7 @@ export default function LogsPage() {
       <div className="bg-white rounded-lg shadow p-4 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-1">팀원</label>
+            <label className="block text-sm font-medium text-gray-800 mb-1">팀원</label>
             <select
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
@@ -151,7 +151,7 @@ export default function LogsPage() {
           </div>
           
           <div>
-            <label className="block text-sm font-medium mb-1">시작일</label>
+            <label className="block text-sm font-medium text-gray-800 mb-1">시작일</label>
             <input
               type="date"
               value={startDate}
@@ -161,7 +161,7 @@ export default function LogsPage() {
           </div>
           
           <div>
-            <label className="block text-sm font-medium mb-1">종료일</label>
+            <label className="block text-sm font-medium text-gray-800 mb-1">종료일</label>
             <input
               type="date"
               value={endDate}
@@ -199,7 +199,7 @@ export default function LogsPage() {
             />
           </div>
           <div className="lg:col-span-2 space-y-4">
-            <h3 className="font-semibold text-lg">
+            <h3 className="font-bold text-xl text-gray-800">
               {selectedCalendarDate 
                 ? formatDate(selectedCalendarDate.toISOString())
                 : '날짜를 선택하세요'}
@@ -208,25 +208,27 @@ export default function LogsPage() {
               logs.filter(log => log.date === selectedCalendarDate.toISOString().split('T')[0])
                 .length === 0 ? (
                   <div className="bg-gray-50 rounded-lg p-12 text-center">
-                    <p className="text-gray-500">이 날짜에 작성된 업무일지가 없습니다.</p>
+                    <p className="text-gray-800">이 날짜에 작성된 업무일지가 없습니다.</p>
                   </div>
                 ) : (
                   logs.filter(log => log.date === selectedCalendarDate.toISOString().split('T')[0])
                     .map(log => (
-                      <div key={log.id} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
+                      <div key={log.id} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]">
                         <div className="p-6">
                           <div className="flex items-start justify-between mb-4">
                             <div className="flex items-center gap-3">
-                              <span className="text-2xl">{getCharacterEmoji(log.profiles.character_type)}</span>
+                              <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center">
+                                <span className="text-2xl">{getCharacterEmoji(log.profiles.character_type)}</span>
+                              </div>
                               <div>
-                                <h3 className="font-semibold">{log.profiles.username}</h3>
-                                <p className="text-sm text-gray-600">{formatDate(log.date)}</p>
+                                <h3 className="font-bold text-lg text-gray-800">{log.profiles.username}</h3>
+                                <p className="text-sm text-gray-800 font-medium">{formatDate(log.date)}</p>
                               </div>
                             </div>
                           </div>
                           
                           <div className="prose prose-sm max-w-none">
-                            <pre className="whitespace-pre-wrap font-sans text-gray-700 bg-gray-50 p-4 rounded-lg overflow-auto max-h-96">
+                            <pre className="whitespace-pre-wrap font-sans text-gray-900 bg-gradient-to-r from-gray-50 to-gray-100 p-6 rounded-xl overflow-auto max-h-96 border border-gray-200">
                               {log.content}
                             </pre>
                           </div>
@@ -240,25 +242,27 @@ export default function LogsPage() {
       ) : (
         <div className="space-y-4">
           {logs.length === 0 ? (
-            <div className="bg-gray-50 rounded-lg p-12 text-center">
-              <p className="text-gray-500">해당 기간에 작성된 업무일지가 없습니다.</p>
+            <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl p-12 text-center">
+              <p className="text-gray-800 text-lg font-medium">📄 해당 기간에 작성된 업무일지가 없습니다.</p>
             </div>
           ) : (
             logs.map(log => (
-              <div key={log.id} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
+              <div key={log.id} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]">
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{getCharacterEmoji(log.profiles.character_type)}</span>
+                      <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center">
+                        <span className="text-2xl">{getCharacterEmoji(log.profiles.character_type)}</span>
+                      </div>
                       <div>
-                        <h3 className="font-semibold">{log.profiles.username}</h3>
-                        <p className="text-sm text-gray-600">{formatDate(log.date)}</p>
+                        <h3 className="font-bold text-lg text-gray-800">{log.profiles.username}</h3>
+                        <p className="text-sm text-gray-800 font-medium">{formatDate(log.date)}</p>
                       </div>
                     </div>
                   </div>
                   
                   <div className="prose prose-sm max-w-none">
-                    <pre className="whitespace-pre-wrap font-sans text-gray-700 bg-gray-50 p-4 rounded-lg overflow-auto max-h-96">
+                    <pre className="whitespace-pre-wrap font-sans text-gray-900 bg-gradient-to-r from-gray-50 to-gray-100 p-6 rounded-xl overflow-auto max-h-96 border border-gray-200">
                       {log.content}
                     </pre>
                   </div>
@@ -269,12 +273,13 @@ export default function LogsPage() {
         </div>
       )}
 
-      {/* Loading more indicator */}
-      {loading && logs.length > 0 && (
-        <div className="text-center py-4">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      )}
+        {/* Loading more indicator */}
+        {loading && logs.length > 0 && (
+          <div className="text-center py-4">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          </div>
+        )}
     </div>
+
   )
 }

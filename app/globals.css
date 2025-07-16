@@ -15,5 +15,121 @@
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.3s ease-out;
+}
+
+/* Character animation frames */
+@keyframes characterFrame1 {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+
+@keyframes characterFrame2 {
+  0%, 50% { opacity: 0; }
+  50.01%, 100% { opacity: 1; }
+}
+
+.animate-character-frame-1 {
+  animation: characterFrame1 1s infinite;
+}
+
+.animate-character-frame-2 {
+  animation: characterFrame2 1s infinite;
+}
+
+/* Calendar styles */
+.calendar-wrapper .react-calendar {
+  width: 100%;
+  background: white;
+  border: none;
+  font-family: inherit;
+  line-height: 1.5;
+  padding: 20px;
+}
+
+.calendar-wrapper .react-calendar__tile {
+  height: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 5px;
+  position: relative;
+}
+
+.calendar-wrapper .react-calendar__tile--active {
+  background: #10b981;
+  color: white;
+}
+
+.calendar-wrapper .react-calendar__tile--active:enabled:hover,
+.calendar-wrapper .react-calendar__tile--active:enabled:focus {
+  background: #059669;
+}
+
+.calendar-wrapper .react-calendar__tile--now {
+  background: #f3f4f6;
+}
+
+.calendar-wrapper .react-calendar__tile.has-logs {
+  font-weight: 600;
+}
+
+.calendar-wrapper .react-calendar__month-view__days__day--weekend {
+  color: #dc2626;
+}
+
+.calendar-wrapper .react-calendar__navigation button {
+  font-size: 1.1rem;
+  color: #374151;
+}
+
+.calendar-wrapper .react-calendar__navigation button:enabled:hover,
+.calendar-wrapper .react-calendar__navigation button:enabled:focus {
+  background-color: #f3f4f6;
 }

@@ -10,17 +10,40 @@ export default function CharacterSelectPage() {
   const [selectedCharacter, setSelectedCharacter] = useState<CharacterType | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [takenCharacters, setTakenCharacters] = useState<CharacterType[]>([])
+  const [loadingCharacters, setLoadingCharacters] = useState(true)
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
     checkAuth()
+    fetchTakenCharacters()
   }, [])
 
   const checkAuth = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       router.push('/login')
+    }
+  }
+
+  const fetchTakenCharacters = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('character_type')
+        .not('character_type', 'is', null)
+
+      if (error) {
+        console.error('Error fetching taken characters:', error)
+      } else {
+        const taken = data?.map(profile => profile.character_type).filter(Boolean) || []
+        setTakenCharacters(taken as CharacterType[])
+      }
+    } catch (err) {
+      console.error('Error:', err)
+    } finally {
+      setLoadingCharacters(false)
     }
   }
 
@@ -83,42 +106,72 @@ export default function CharacterSelectPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-6 mb-8">
-        {characters.map((character) => (
-          <button
-            key={character.type}
-            onClick={() => setSelectedCharacter(character.type)}
-            className={`relative p-6 border-2 rounded-lg transition-all ${
-              selectedCharacter === character.type
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-300 hover:border-gray-400'
-            }`}
-          >
-            <div className="aspect-square bg-gray-200 rounded-lg mb-4 flex items-center justify-center">
-              <div className="text-gray-500 text-center">
-                <p className="text-2xl mb-2">🎮</p>
-                <p className="text-sm">캐릭터 {character.type}</p>
-              </div>
-            </div>
-            <h3 className="font-semibold text-lg mb-1">{character.name}</h3>
-            <p className="text-sm text-gray-600">{character.description}</p>
-            {selectedCharacter === character.type && (
-              <div className="absolute top-2 right-2">
-                <div className="bg-blue-500 text-white rounded-full p-1">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
+      {loadingCharacters ? (
+        <div className="text-center py-12">
+          <p className="text-gray-500">캐릭터 정보를 불러오는 중...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-6 mb-8">
+          {characters.map((character) => {
+            const isTaken = takenCharacters.includes(character.type)
+            const isSelectable = !isTaken
+            
+            return (
+              <button
+                key={character.type}
+                onClick={() => isSelectable && setSelectedCharacter(character.type)}
+                disabled={isTaken}
+                className={`relative p-6 border-2 rounded-lg transition-all ${
+                  selectedCharacter === character.type
+                    ? 'border-blue-500 bg-blue-50'
+                    : isTaken
+                    ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
+                    : 'border-gray-300 hover:border-gray-400 cursor-pointer'
+                }`}
+              >
+                <div className={`aspect-square rounded-lg mb-4 flex items-center justify-center relative overflow-hidden ${
+                  isTaken ? 'bg-gray-300' : 'bg-gray-200'
+                }`}>
+                  <div className="relative w-full h-full">
+                    <Image
+                      src={`/characters/character${character.type}/home_1.png`}
+                      alt={character.name}
+                      fill
+                      className={`object-contain p-4 ${isTaken ? 'filter grayscale' : ''}`}
+                      sizes="(max-width: 768px) 50vw, 25vw"
+                    />
+                  </div>
+                  {isTaken && (
+                    <div className="absolute inset-0 bg-gray-900 bg-opacity-20 flex items-center justify-center">
+                      <span className="text-gray-700 font-semibold bg-white px-3 py-1 rounded">선택됨</span>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
-          </button>
-        ))}
-      </div>
+                <h3 className={`font-semibold text-lg mb-1 ${isTaken ? 'text-gray-500' : ''}`}>
+                  {character.name}
+                </h3>
+                <p className={`text-sm ${isTaken ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {character.description}
+                </p>
+                {selectedCharacter === character.type && (
+                  <div className="absolute top-2 right-2">
+                    <div className="bg-blue-500 text-white rounded-full p-1">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  </div>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       <div className="text-center">
         <button
           onClick={handleCharacterSelect}
-          disabled={!selectedCharacter || loading}
+          disabled={!selectedCharacter || loading || loadingCharacters}
           className="inline-flex justify-center py-2 px-8 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? '선택 중...' : '캐릭터 선택하기'}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/lib/stores/auth-store'
@@ -12,6 +12,7 @@ export default function MainLayout({
   children: React.ReactNode
 }) {
   const router = useRouter()
+  const pathname = usePathname()
   const supabase = createClient()
   const { user, setUser, setLoading } = useAuthStore()
 
@@ -62,51 +63,60 @@ export default function MainLayout({
     router.push('/login')
   }
 
+  const navItems = [
+    { href: '/village', label: '마을', icon: '🏘️' },
+    { href: '/logs', label: '업무일지', icon: '📝' },
+    { href: '/stats', label: '통계', icon: '📊' },
+    { href: '/template', label: '템플릿', icon: '📋' },
+  ]
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+      <nav className="bg-white/80 backdrop-blur-lg shadow-lg border-b border-gray-100/50 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
+          <div className="flex justify-between h-20">
+            <div className="flex items-center">
               <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-xl font-bold">Workville</h1>
+                <h1 className="text-2xl font-black bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
+                  Workville
+                </h1>
               </div>
-              <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                <Link
-                  href="/village"
-                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-gray-700"
-                >
-                  마을
-                </Link>
-                <Link
-                  href="/logs"
-                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-gray-700"
-                >
-                  업무일지
-                </Link>
-                <Link
-                  href="/stats"
-                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-gray-700"
-                >
-                  통계
-                </Link>
-                <Link
-                  href="/template"
-                  className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 hover:text-gray-700"
-                >
-                  템플릿
-                </Link>
+              <div className="hidden sm:ml-10 sm:flex sm:space-x-2">
+                {navItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`
+                      inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200
+                      ${pathname === item.href 
+                        ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-lg shadow-emerald-500/25 scale-105' 
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/80'
+                      }
+                    `}
+                  >
+                    <span className="mr-2 text-lg">{item.icon}</span>
+                    {item.label}
+                  </Link>
+                ))}
               </div>
             </div>
             <div className="flex items-center space-x-4">
               {user && (
                 <>
-                  <span className="text-sm text-gray-700">
-                    {user.username} (Lv.{user.level})
-                  </span>
+                  <div className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-100 to-green-100">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-emerald-400 to-green-400 flex items-center justify-center text-white font-bold text-xs">
+                      {user.username.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-sm font-semibold text-gray-800">
+                      {user.username}
+                    </span>
+                    <span className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-green-600">
+                      Lv.{user.level}
+                    </span>
+                  </div>
                   <button
                     onClick={handleLogout}
-                    className="text-sm text-gray-500 hover:text-gray-700"
+                    className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200"
                   >
                     로그아웃
                   </button>
@@ -116,7 +126,7 @@ export default function MainLayout({
           </div>
         </div>
       </nav>
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8 animate-fadeIn">
         {children}
       </main>
     </div>

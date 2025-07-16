@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 
 export default function SignupPage() {
   const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -35,13 +36,21 @@ export default function SignupPage() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/character-select`
+          emailRedirectTo: `${window.location.origin}/character-select`,
+          data: {
+            username: username || email // username이 없으면 email을 사용
+          }
         }
       })
 
       if (error) {
         console.error('Signup error:', error)
-        setError(error.message)
+        // 중복 이메일 에러 처리
+        if (error.message.includes('User already registered')) {
+          setError('이미 등록된 이메일입니다. 로그인 페이지를 이용해주세요.')
+        } else {
+          setError(error.message)
+        }
       } else {
         console.log('Signup response:', data)
         
@@ -108,6 +117,21 @@ export default function SignupPage() {
               placeholder="이메일을 입력하세요"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+              사용자명 (선택사항)
+            </label>
+            <input
+              id="username"
+              name="username"
+              type="text"
+              autoComplete="username"
+              className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+              placeholder="사용자명을 입력하세요"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
             />
           </div>
           <div>

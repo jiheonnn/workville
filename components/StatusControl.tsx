@@ -7,6 +7,7 @@ import WorkLogModal from '@/components/work-log/WorkLogModal'
 
 export default function StatusControl() {
   const [showWorkLogModal, setShowWorkLogModal] = useState(false)
+  const [currentTime, setCurrentTime] = useState(new Date())
   const { 
     currentUserStatus, 
     todaySession,
@@ -18,6 +19,13 @@ export default function StatusControl() {
 
   useEffect(() => {
     fetchCurrentStatus()
+    
+    // Update time every second for real-time display
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+    
+    return () => clearInterval(timer)
   }, [])
 
   const handleStatusChange = async (newStatus: UserStatus) => {
@@ -66,20 +74,20 @@ export default function StatusControl() {
 
   const getButtonStyle = (status: UserStatus) => {
     const isActive = currentUserStatus === status
-    const baseStyle = "px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center gap-2"
+    const baseStyle = "px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2"
     
     if (isActive) {
       switch (status) {
         case 'working':
-          return `${baseStyle} bg-blue-600 text-white shadow-lg scale-105`
+          return `${baseStyle} bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25 scale-105 border-2 border-blue-400`
         case 'break':
-          return `${baseStyle} bg-purple-600 text-white shadow-lg scale-105`
+          return `${baseStyle} bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg shadow-purple-500/25 scale-105 border-2 border-purple-400`
         case 'home':
-          return `${baseStyle} bg-gray-600 text-white shadow-lg scale-105`
+          return `${baseStyle} bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-lg shadow-gray-500/25 scale-105 border-2 border-gray-400`
       }
     }
     
-    return `${baseStyle} bg-gray-200 hover:bg-gray-300 text-gray-700`
+    return `${baseStyle} bg-white hover:bg-gray-50 text-gray-600 border-2 border-gray-200 hover:border-gray-300 hover:shadow-md`
   }
 
   const getStatusIcon = (status: UserStatus) => {
@@ -112,11 +120,10 @@ export default function StatusControl() {
     
     if (todaySession.duration_minutes) {
       totalMinutes = todaySession.duration_minutes
-    } else if (todaySession.check_in_time && currentUserStatus === 'working') {
-      // Currently working, calculate time since check-in
+    } else if (todaySession.check_in_time && (currentUserStatus === 'working' || currentUserStatus === 'break')) {
+      // Currently working or on break, calculate time since check-in
       const checkInTime = new Date(todaySession.check_in_time)
-      const now = new Date()
-      totalMinutes = Math.floor((now.getTime() - checkInTime.getTime()) / (1000 * 60))
+      totalMinutes = Math.floor((currentTime.getTime() - checkInTime.getTime()) / (1000 * 60))
     }
     
     const hours = Math.floor(totalMinutes / 60)
@@ -125,23 +132,25 @@ export default function StatusControl() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <h2 className="text-xl font-bold mb-4">근무 상태 관리</h2>
+    <div className="bg-white/90 backdrop-blur-lg rounded-2xl shadow-2xl p-10 border border-gray-100/50 animate-fadeIn">
+      <h2 className="text-2xl font-black mb-6 bg-gradient-to-r from-gray-700 to-gray-900 bg-clip-text text-transparent">
+        근무 상태 관리
+      </h2>
       
       {error && (
-        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
+        <div className="mb-4 p-4 bg-red-50 text-red-700 rounded-xl border border-red-200 animate-slideIn">
           {error}
         </div>
       )}
       
-      <div className="space-y-4">
-        <div className="flex gap-3">
+      <div className="space-y-6">
+        <div className="flex flex-col gap-3 min-w-0">
           <button
             onClick={() => handleStatusChange('working')}
             disabled={isLoading}
             className={getButtonStyle('working')}
           >
-            <span>{getStatusIcon('working')}</span>
+            <span className="text-xl">{getStatusIcon('working')}</span>
             <span>{getStatusText('working')}</span>
           </button>
           
@@ -150,7 +159,7 @@ export default function StatusControl() {
             disabled={isLoading}
             className={getButtonStyle('break')}
           >
-            <span>{getStatusIcon('break')}</span>
+            <span className="text-xl">{getStatusIcon('break')}</span>
             <span>{getStatusText('break')}</span>
           </button>
           
@@ -159,22 +168,27 @@ export default function StatusControl() {
             disabled={isLoading}
             className={getButtonStyle('home')}
           >
-            <span>{getStatusIcon('home')}</span>
+            <span className="text-xl">{getStatusIcon('home')}</span>
             <span>{getStatusText('home')}</span>
           </button>
         </div>
         
-        <div className="pt-4 border-t">
-          <div className="flex justify-between items-center">
-            <span className="text-gray-600">오늘 근무 시간:</span>
-            <span className="font-semibold text-lg">{getTodayWorkTime()}</span>
-          </div>
-          
-          {todaySession?.check_in_time && (
-            <div className="mt-2 text-sm text-gray-500">
-              출근 시간: {new Date(todaySession.check_in_time).toLocaleTimeString('ko-KR')}
+        <div className="pt-6 border-t-2 border-gray-100">
+          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-6">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-700 font-semibold whitespace-nowrap">오늘 근무 시간</span>
+              <span className="font-black text-lg bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent whitespace-nowrap">
+                {getTodayWorkTime()}
+              </span>
             </div>
-          )}
+            
+            {todaySession?.check_in_time && (
+              <div className="mt-3 text-xs text-gray-600 font-medium flex items-center gap-2">
+                <span className="text-emerald-600">⏰</span>
+                출근 시간: {new Date(todaySession.check_in_time).toLocaleTimeString('ko-KR')}
+              </div>
+            )}
+          </div>
         </div>
       </div>
       

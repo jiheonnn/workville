@@ -1,10 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-} from 'recharts'
+import { useState, useEffect, useCallback } from 'react'
+import PersonalStatsView from '@/components/stats/PersonalStatsView'
+import TeamStatsView from '@/components/stats/TeamStatsView'
 
 type Period = 'week' | 'month' | 'quarter'
 
@@ -91,12 +89,11 @@ export default function StatsPage() {
     }
   }
 
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     const date = new Date(dateString)
     return `${date.getMonth() + 1}/${date.getDate()}`
-  }
+  }, [])
 
-  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899']
 
   const getCharacterColor = (characterType: string) => {
     const colors: Record<string, string> = {
@@ -111,299 +108,92 @@ export default function StatsPage() {
   if (loading) {
     return (
       <div className="p-6">
-        <h2 className="text-2xl font-bold mb-6">통계</h2>
+        <h2 className="text-3xl font-black bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-6">통계</h2>
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">통계</h2>
+    <div className="max-w-7xl mx-auto animate-fadeIn">
+      <div className="bg-white rounded-2xl shadow-xl p-8">
+        <h2 className="text-3xl font-black bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-8">통계</h2>
 
-      {/* Tab Navigation */}
-      <div className="flex gap-4 mb-6">
-        <button
-          onClick={() => setActiveTab('personal')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            activeTab === 'personal'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-        >
-          개인 통계
-        </button>
-        <button
-          onClick={() => setActiveTab('team')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            activeTab === 'team'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-        >
-          팀 통계
-        </button>
+        {/* Tab Navigation */}
+        <div className="flex gap-4 mb-8">
+          <button
+            onClick={() => setActiveTab('personal')}
+            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+              activeTab === 'personal'
+                ? 'bg-gradient-to-r from-emerald-600 to-green-600 text-white shadow-lg shadow-emerald-600/25 scale-105'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            👤 개인 통계
+          </button>
+          <button
+            onClick={() => setActiveTab('team')}
+            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+              activeTab === 'team'
+                ? 'bg-gradient-to-r from-emerald-600 to-green-600 text-white shadow-lg shadow-emerald-600/25 scale-105'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            👥 팀 통계
+          </button>
 
-        <div className="ml-auto flex gap-2">
-          <button
-            onClick={() => setPeriod('week')}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              period === 'week'
-                ? 'bg-gray-800 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            1주일
-          </button>
-          <button
-            onClick={() => setPeriod('month')}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              period === 'month'
-                ? 'bg-gray-800 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            1개월
-          </button>
-          <button
-            onClick={() => setPeriod('quarter')}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              period === 'quarter'
-                ? 'bg-gray-800 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            3개월
-          </button>
+          <div className="ml-auto flex gap-2">
+            <button
+              onClick={() => setPeriod('week')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
+                period === 'week'
+                  ? 'bg-gradient-to-r from-gray-700 to-gray-900 text-white shadow-md'
+                  : 'bg-white text-gray-600 hover:bg-gray-50 border-2 border-gray-200'
+              }`}
+            >
+              1주일
+            </button>
+            <button
+              onClick={() => setPeriod('month')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
+                period === 'month'
+                  ? 'bg-gradient-to-r from-gray-700 to-gray-900 text-white shadow-md'
+                  : 'bg-white text-gray-600 hover:bg-gray-50 border-2 border-gray-200'
+              }`}
+            >
+              1개월
+            </button>
+            <button
+              onClick={() => setPeriod('quarter')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
+                period === 'quarter'
+                  ? 'bg-gradient-to-r from-gray-700 to-gray-900 text-white shadow-md'
+                  : 'bg-white text-gray-600 hover:bg-gray-50 border-2 border-gray-200'
+              }`}
+            >
+              3개월
+            </button>
+          </div>
         </div>
+
+        {error && (
+          <div className="bg-red-50 text-red-700 p-5 rounded-xl mb-6 border border-red-200 animate-slideIn">
+            ⚠️ {error}
+          </div>
+        )}
+
+        {/* Personal Stats */}
+        {activeTab === 'personal' && personalStats && (
+          <PersonalStatsView stats={personalStats} formatDate={formatDate} />
+        )}
+
+        {/* Team Stats */}
+        {activeTab === 'team' && teamStats && (
+          <TeamStatsView stats={teamStats} formatDate={formatDate} getCharacterColor={getCharacterColor} />
+        )}
       </div>
-
-      {error && (
-        <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-6">
-          {error}
-        </div>
-      )}
-
-      {/* Personal Stats */}
-      {activeTab === 'personal' && personalStats && (
-        <div className="space-y-6">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-sm font-medium text-gray-600">총 근무시간</h3>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {personalStats.summary.totalHours}시간
-              </p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-sm font-medium text-gray-600">평균 근무시간</h3>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {personalStats.summary.averageHours}시간
-              </p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-sm font-medium text-gray-600">근무일수</h3>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {personalStats.summary.workDays}일
-              </p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-sm font-medium text-gray-600">현재 레벨</h3>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                Lv.{personalStats.level.current}
-              </p>
-              <div className="mt-2">
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${personalStats.level.progress}%` }}
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  다음 레벨까지 {personalStats.level.hoursToNext}시간
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Daily Work Hours Chart */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">일별 근무 시간</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={personalStats.dailyStats}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="date" 
-                  tickFormatter={formatDate}
-                />
-                <YAxis />
-                <Tooltip 
-                  labelFormatter={(value) => `날짜: ${value}`}
-                  formatter={(value: any) => [`${value}시간`, '근무시간']}
-                />
-                <Bar dataKey="hours" fill="#3B82F6" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Day Pattern Chart */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">요일별 평균 근무시간</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={personalStats.dayPattern}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="day" />
-                <YAxis />
-                <Tooltip 
-                  formatter={(value: any) => [`${value}시간`, '평균']}
-                />
-                <Bar dataKey="averageHours" fill="#10B981" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      {/* Team Stats */}
-      {activeTab === 'team' && teamStats && (
-        <div className="space-y-6">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-sm font-medium text-gray-600">팀 총 근무시간</h3>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {teamStats.summary.totalHours}시간
-              </p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-sm font-medium text-gray-600">인당 평균</h3>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {teamStats.summary.averageHoursPerMember}시간
-              </p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-sm font-medium text-gray-600">팀원 수</h3>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {teamStats.summary.totalMembers}명
-              </p>
-            </div>
-          </div>
-
-          {/* Team Member Comparison */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">팀원별 근무시간</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={teamStats.members} layout="horizontal">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="username" />
-                <YAxis />
-                <Tooltip 
-                  formatter={(value: any, name: string) => [
-                    `${value}시간`,
-                    name === 'totalHours' ? '총 근무시간' : '평균'
-                  ]}
-                />
-                <Bar dataKey="totalHours" fill="#3B82F6" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Team Activity Timeline */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">팀 활동 타임라인</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={teamStats.dailyActivity}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="date" 
-                  tickFormatter={formatDate}
-                />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip 
-                  labelFormatter={(value) => `날짜: ${value}`}
-                  formatter={(value: any, name: string) => [
-                    name === 'hours' ? `${value}시간` : `${value}명`,
-                    name === 'hours' ? '총 근무시간' : '활동 인원'
-                  ]}
-                />
-                <Legend />
-                <Line 
-                  yAxisId="left"
-                  type="monotone" 
-                  dataKey="hours" 
-                  stroke="#3B82F6" 
-                  name="총 근무시간"
-                />
-                <Line 
-                  yAxisId="right"
-                  type="monotone" 
-                  dataKey="activeMembers" 
-                  stroke="#10B981" 
-                  name="활동 인원"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Team Member Details */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">팀원 상세</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      팀원
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      레벨
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      총 근무시간
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      평균 근무시간
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      근무일수
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {teamStats.members.map((member) => (
-                    <tr key={member.id}>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div 
-                            className="w-8 h-8 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: getCharacterColor(member.characterType) }}
-                          />
-                          <span className="ml-3 font-medium">{member.username}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        Lv.{member.level}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {member.totalHours}시간
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {member.averageHours}시간
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {member.workDays}일
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
