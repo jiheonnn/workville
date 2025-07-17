@@ -85,12 +85,14 @@ export async function GET(request: NextRequest) {
 
     // Transform character_type to string format
     const transformedLogs = logsWithSessions?.map(log => {
-      if (log.profiles) {
+      const profile = log.profiles as any
+      if (profile && typeof profile === 'object' && !Array.isArray(profile)) {
         return {
           ...log,
           profiles: {
-            ...log.profiles,
-            character_type: `character${log.profiles.character_type}`
+            id: profile.id,
+            username: profile.username,
+            character_type: `character${profile.character_type}`
           }
         }
       }
