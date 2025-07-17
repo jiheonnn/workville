@@ -210,7 +210,7 @@ export default function VillageMap() {
   return (
     <div className="w-full h-full">
       <div className="max-w-6xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-xl p-8 animate-fadeIn">
+        <div className="bg-white rounded-2xl shadow-xl p-8 animate-fadeIn" style={{ isolation: 'isolate' }}>
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-3xl font-black bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
               팀원 현황
@@ -227,7 +227,7 @@ export default function VillageMap() {
             </div>
           </div>
           
-          <div className="relative rounded-xl overflow-hidden shadow-inner bg-green-50">
+          <div className="relative rounded-xl bg-green-50">
             <div 
               className="relative w-full aspect-[9/7] p-6"
               style={{
@@ -235,7 +235,7 @@ export default function VillageMap() {
               }}
             >
               {/* Grid layer */}
-              <div className="grid grid-cols-9 grid-rows-7 gap-1.5 w-full h-full">
+              <div className="relative grid grid-cols-9 grid-rows-7 gap-1.5 w-full h-full z-0">
                 {/* Render grid cells */}
                 {Array.from({ length: gridRows }).map((_, row) =>
                   Array.from({ length: gridCols }).map((_, col) => {
@@ -262,7 +262,7 @@ export default function VillageMap() {
               </div>
 
               {/* Character layer */}
-              <div className="absolute inset-0 grid grid-cols-9 grid-rows-7 gap-1.5 pointer-events-none">
+              <div className="absolute inset-0 grid grid-cols-9 grid-rows-7 gap-1.5 p-6" style={{ zIndex: 9999 }}>
                 {/* Render characters */}
                 {characters.map((character) => {
                   const isOnline = onlineUsers.has(character.id)

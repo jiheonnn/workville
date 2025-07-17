@@ -12,6 +12,12 @@ interface Profile {
   character_type: CharacterType
 }
 
+interface WorkSession {
+  check_in_time: string
+  check_out_time: string | null
+  duration_minutes: number | null
+}
+
 interface WorkLog {
   id: string
   date: string
@@ -20,6 +26,7 @@ interface WorkLog {
   user_id: string
   start_time: string | null
   end_time: string | null
+  work_sessions: WorkSession[]
   profiles: Profile
 }
 
@@ -93,6 +100,34 @@ export default function LogsPage() {
     if (!timeString) return 'N/A'
     const date = new Date(timeString)
     return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+  }
+
+
+  const calculateTotalDuration = (sessions: WorkSession[]) => {
+    const totalMinutes = sessions.reduce((total, session) => {
+      return total + (session.duration_minutes || 0)
+    }, 0)
+
+    const hours = Math.floor(totalMinutes / 60)
+    const minutes = totalMinutes % 60
+
+    return `${hours}시간 ${minutes}분`
+  }
+
+  const renderWorkSessions = (sessions: WorkSession[]) => {
+    if (!sessions || sessions.length === 0) return 'N/A'
+    
+    return sessions.map((session, index) => (
+      <div key={index} className="text-xs">
+        <span>출근: {formatTime(session.check_in_time)}</span>
+        {session.check_out_time && (
+          <>
+            <span className="mx-1">→</span>
+            <span>퇴근: {formatTime(session.check_out_time)}</span>
+          </>
+        )}
+      </div>
+    ))
   }
 
   const getCharacterEmoji = (characterType: CharacterType) => {
@@ -232,10 +267,11 @@ export default function LogsPage() {
                               <div>
                                 <h3 className="font-bold text-lg text-gray-800">{log.profiles.username}</h3>
                                 <p className="text-sm text-gray-800 font-medium">{formatDate(log.date)}</p>
-                                <div className="text-xs text-gray-600 font-medium mt-1">
-                                  <span>출근: {formatTime(log.start_time)}</span>
-                                  <span className="mx-2">|</span>
-                                  <span>퇴근: {formatTime(log.end_time)}</span>
+                                <div className="text-sm text-gray-600 font-medium mt-1">
+                                  <div className="mb-1">총 근무시간: {calculateTotalDuration(log.work_sessions || [])}</div>
+                                  <div className="space-y-1">
+                                    {renderWorkSessions(log.work_sessions || [])}
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -271,10 +307,11 @@ export default function LogsPage() {
                       <div>
                         <h3 className="font-bold text-lg text-gray-800">{log.profiles.username}</h3>
                         <p className="text-sm text-gray-800 font-medium">{formatDate(log.date)}</p>
-                        <div className="text-xs text-gray-600 font-medium mt-1">
-                          <span>출근: {formatTime(log.start_time)}</span>
-                          <span className="mx-2">|</span>
-                          <span>퇴근: {formatTime(log.end_time)}</span>
+                        <div className="text-sm text-gray-600 font-medium mt-1">
+                          <div className="mb-1">총 근무시간: {calculateTotalDuration(log.work_sessions || [])}</div>
+                          <div className="space-y-1">
+                            {renderWorkSessions(log.work_sessions || [])}
+                          </div>
                         </div>
                       </div>
                     </div>

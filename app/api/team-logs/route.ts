@@ -58,17 +58,22 @@ export async function GET(request: NextRequest) {
 
     // Fetch work session data for each log
     const logsWithSessions = logs ? await Promise.all(logs.map(async (log) => {
-      const { data: session } = await supabase
+      const { data: sessions } = await supabase
         .from('work_sessions')
-        .select('check_in_time, check_out_time')
+        .select('check_in_time, check_out_time, duration_minutes')
         .eq('user_id', log.user_id)
         .eq('date', log.date)
-        .single()
+        .order('check_in_time', { ascending: true })
 
       return {
         ...log,
-        start_time: session?.check_in_time,
-        end_time: session?.check_out_time,
+        work_sessions: sessions || [],
+        // Keep legacy fields for backward compatibility
+        start_time: sessions && sessions.length > 0 ? sessions[0].check_in_time : null,
+        end_time: sessions && sessions.length > 0 ? 
+          sessions.reduce((latest, current) => {
+            return current.check_out_time > latest ? current.check_out_time : latest;
+          }, sessions[0].check_out_time) : null,
       }
     })) : []
 

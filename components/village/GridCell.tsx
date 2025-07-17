@@ -34,9 +34,9 @@ export default function GridCell({ x, y, type }: GridCellProps) {
   return (
     <div
       className={`
-        relative rounded-lg border-2 ${getStyles()} 
-        flex items-center justify-center z-0
-        ${type !== 'grass' ? 'transform hover:scale-105 transition-transform duration-200 cursor-pointer will-change-transform' : ''}
+        rounded-lg border-2 ${getStyles()} 
+        flex items-center justify-center
+        ${type !== 'grass' ? 'relative transform hover:scale-105 transition-transform duration-200 cursor-pointer' : ''}
       `}
       style={{
         gridColumn: x,

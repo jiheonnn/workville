@@ -36,21 +36,27 @@ export default function Character({ characterType, status, position, username, i
 
   return (
     <div
-      className={`flex flex-col items-center justify-center transition-all duration-1000 ease-in-out z-20 pointer-events-auto ${!isOnline ? 'opacity-50' : ''}`}
+      className={`relative flex flex-col items-center justify-center transition-all duration-1000 ease-in-out pointer-events-auto`}
       style={{
         gridColumn: position.x,
         gridRow: position.y,
+        zIndex: 9999,
       }}
     >
+      {/* Username */}
+      <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs font-semibold bg-white px-2 py-0.5 rounded shadow text-black whitespace-nowrap">
+        {username}
+      </div>
+      
       {/* Character image */}
-      <div className="relative w-16 h-16">
+      <div className="relative w-20 h-20" style={{ zIndex: 99999 }}>
         {!imageError ? (
           <>
             <Image
               src={imagePath1}
               alt={`${username} - ${status}`}
-              width={64}
-              height={64}
+              width={80}
+              height={80}
               className="pixelated absolute inset-0 animate-character-frame-1"
               style={{
                 imageRendering: 'pixelated',
@@ -60,8 +66,8 @@ export default function Character({ characterType, status, position, username, i
             <Image
               src={imagePath2}
               alt={`${username} - ${status}`}
-              width={64}
-              height={64}
+              width={80}
+              height={80}
               className="pixelated absolute inset-0 animate-character-frame-2"
               style={{
                 imageRendering: 'pixelated',
@@ -70,15 +76,10 @@ export default function Character({ characterType, status, position, username, i
             />
           </>
         ) : (
-          <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-            <span className="text-2xl">👤</span>
+          <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
+            <span className="text-3xl">👤</span>
           </div>
         )}
-      </div>
-      
-      {/* Username */}
-      <div className="text-xs font-semibold mt-1 bg-white px-2 py-0.5 rounded shadow">
-        {username}
       </div>
     </div>
   )

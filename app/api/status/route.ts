@@ -101,39 +101,28 @@ export async function POST(request: NextRequest) {
           }
         }
       }
-    } else if (status === 'working' && previousStatus !== 'working') {
-      // User is starting work session
-      // Check if there's already an open session for today (from break)
+    } else if (status === 'working' && previousStatus === 'home') {
+      // User is starting work session from home (not from break)
+      // Always create a new session when coming from home
       const today = now.split('T')[0]
-      const { data: existingSession } = await supabase
+      const { error: sessionError } = await supabase
         .from('work_sessions')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .is('check_out_time', null)
-        .single()
+        .insert({
+          user_id: user.id,
+          check_in_time: now,
+          date: today // YYYY-MM-DD format
+        })
 
-      if (!existingSession) {
-        // No open session, create a new one
-        const { error: sessionError } = await supabase
-          .from('work_sessions')
-          .insert({
-            user_id: user.id,
-            check_in_time: now,
-            date: today // YYYY-MM-DD format
-          })
-
-        if (sessionError) {
-          console.error('Error creating work session - Full details:', sessionError)
-          console.error('Error creating work session - Message:', sessionError.message)
-          console.error('Error creating work session - Code:', sessionError.code)
-          console.error('Error creating work session - Details:', sessionError.details)
-          console.error('Error creating work session - Hint:', sessionError.hint)
-          // Don't return here, continue with status update
-        }
+      if (sessionError) {
+        console.error('Error creating work session - Full details:', sessionError)
+        console.error('Error creating work session - Message:', sessionError.message)
+        console.error('Error creating work session - Code:', sessionError.code)
+        console.error('Error creating work session - Details:', sessionError.details)
+        console.error('Error creating work session - Hint:', sessionError.hint)
+        // Don't return here, continue with status update
       }
-      // If there's an existing session, we just continue with it (no action needed)
     }
+    // If coming from break, don't create a new session (keep the existing one)
 
     // First check if user status exists
     const { data: existingStatus } = await supabase
@@ -226,36 +215,36 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch status' }, { status: 500 })
     }
 
-    // Get today's work session if exists
+    // Get all today's work sessions
     const today = new Date().toISOString().split('T')[0]
-    // First try to get active session (check_out_time is null)
-    let { data: todaySession } = await supabase
+    const { data: todaySessions } = await supabase
       .from('work_sessions')
       .select('check_in_time, check_out_time, duration_minutes')
       .eq('user_id', user.id)
       .eq('date', today)
-      .is('check_out_time', null)
-      .maybeSingle()
-    
-    // If no active session, get the most recent completed session for today
-    if (!todaySession) {
-      const { data: completedSession } = await supabase
-        .from('work_sessions')
-        .select('check_in_time, check_out_time, duration_minutes')
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .not('check_out_time', 'is', null)
-        .order('check_out_time', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      
-      todaySession = completedSession
+      .order('check_in_time', { ascending: true })
+
+    // Calculate total duration for today
+    let totalDurationMinutes = 0
+    if (todaySessions) {
+      todaySessions.forEach(session => {
+        if (session.duration_minutes) {
+          totalDurationMinutes += session.duration_minutes
+        } else if (session.check_in_time && !session.check_out_time) {
+          // Active session - calculate current duration
+          const checkInTime = new Date(session.check_in_time)
+          const currentTime = new Date()
+          const currentDuration = Math.floor((currentTime.getTime() - checkInTime.getTime()) / (1000 * 60))
+          totalDurationMinutes += currentDuration
+        }
+      })
     }
 
     return NextResponse.json({
       status: userStatus?.status || 'home',
       lastUpdated: userStatus?.last_updated,
-      todaySession
+      todaySessions,
+      totalDurationMinutes
     })
 
   } catch (error) {

@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/lib/stores/auth-store'
 
@@ -72,7 +73,7 @@ export default function MainLayout({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
-      <nav className="bg-white/80 backdrop-blur-lg shadow-lg border-b border-gray-100/50 sticky top-0 z-50">
+      <nav className="bg-white/80 shadow-lg border-b border-gray-100/50 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20">
             <div className="flex items-center">
@@ -104,8 +105,13 @@ export default function MainLayout({
               {user && (
                 <>
                   <div className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-100 to-green-100">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-emerald-400 to-green-400 flex items-center justify-center text-white font-bold text-xs">
-                      {user.username.charAt(0).toUpperCase()}
+                    <div className="w-8 h-8 rounded-full overflow-hidden relative">
+                      <Image 
+                        src={`/characters/character${user.character_type}/normal.png`}
+                        alt={user.username}
+                        fill
+                        className="object-cover"
+                      />
                     </div>
                     <span className="text-sm font-semibold text-gray-800">
                       {user.username}
