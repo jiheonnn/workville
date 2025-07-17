@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
         content,
         created_at,
         user_id,
-        profiles!inner (
+        profiles (
           id,
           username,
           character_type
@@ -56,15 +56,50 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch logs' }, { status: 500 })
     }
 
+    // Fetch work session data for each log
+    const logsWithSessions = logs ? await Promise.all(logs.map(async (log) => {
+      const { data: session } = await supabase
+        .from('work_sessions')
+        .select('check_in_time, check_out_time')
+        .eq('user_id', log.user_id)
+        .eq('date', log.date)
+        .single()
+
+      return {
+        ...log,
+        start_time: session?.check_in_time,
+        end_time: session?.check_out_time,
+      }
+    })) : []
+
     // Get list of all users for filtering
-    const { data: users } = await supabase
+    const { data: usersData } = await supabase
       .from('profiles')
       .select('id, username, character_type')
       .order('username')
 
+    // Transform character_type to string format
+    const transformedLogs = logsWithSessions?.map(log => {
+      if (log.profiles) {
+        return {
+          ...log,
+          profiles: {
+            ...log.profiles,
+            character_type: `character${log.profiles.character_type}`
+          }
+        }
+      }
+      return log
+    })
+
+    const transformedUsers = usersData?.map(user => ({
+      ...user,
+      character_type: `character${user.character_type}`
+    }))
+
     return NextResponse.json({ 
-      logs: logs || [],
-      users: users || [],
+      logs: transformedLogs || [],
+      users: transformedUsers || [],
       pagination: {
         total: count || 0,
         limit,

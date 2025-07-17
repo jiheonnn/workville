@@ -262,7 +262,7 @@ export default function VillageMap() {
               </div>
 
               {/* Character layer */}
-              <div className="absolute inset-0 grid grid-cols-9 grid-rows-7 gap-1.5 p-6 pointer-events-none">
+              <div className="absolute inset-0 grid grid-cols-9 grid-rows-7 gap-1.5 pointer-events-none">
                 {/* Render characters */}
                 {characters.map((character) => {
                   const isOnline = onlineUsers.has(character.id)

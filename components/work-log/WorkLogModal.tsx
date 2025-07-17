@@ -105,7 +105,7 @@ export default function WorkLogModal({ isOpen, onClose, onSubmit }: WorkLogModal
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                className="w-full h-80 p-4 border-2 border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 font-mono text-sm leading-relaxed"
+                className="w-full h-80 p-4 border-2 border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 font-mono text-sm leading-relaxed text-black"
                 placeholder="## 오늘 한 일\n- \n\n## 내일 할 일\n- \n\n## 이슈 및 특이사항\n- "
                 disabled={isLoading}
               />

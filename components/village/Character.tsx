@@ -36,7 +36,7 @@ export default function Character({ characterType, status, position, username, i
 
   return (
     <div
-      className={`flex flex-col items-center justify-center transition-all duration-1000 ease-in-out z-10 pointer-events-auto ${!isOnline ? 'opacity-50' : ''}`}
+      className={`flex flex-col items-center justify-center transition-all duration-1000 ease-in-out z-20 pointer-events-auto ${!isOnline ? 'opacity-50' : ''}`}
       style={{
         gridColumn: position.x,
         gridRow: position.y,

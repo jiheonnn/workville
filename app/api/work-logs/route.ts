@@ -19,46 +19,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '업무 일지 내용을 입력해주세요.' }, { status: 400 })
     }
 
-    // Save work log
+    // Save work log - always create a new log
     const today = new Date().toISOString().split('T')[0]
     
-    // Check if log already exists for today
-    const { data: existingLog } = await supabase
+    // Create new log
+    const { error: insertError } = await supabase
       .from('work_logs')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('date', today)
-      .single()
+      .insert({
+        user_id: user.id,
+        date: today,
+        content
+      })
 
-    if (existingLog) {
-      // Update existing log
-      const { error: updateError } = await supabase
-        .from('work_logs')
-        .update({ content })
-        .eq('id', existingLog.id)
-
-      if (updateError) {
-        console.error('Error updating work log:', updateError)
-        return NextResponse.json({ 
-          error: '업무 일지 업데이트에 실패했습니다.' 
-        }, { status: 500 })
-      }
-    } else {
-      // Create new log
-      const { error: insertError } = await supabase
-        .from('work_logs')
-        .insert({
-          user_id: user.id,
-          date: today,
-          content
-        })
-
-      if (insertError) {
-        console.error('Error creating work log:', insertError)
-        return NextResponse.json({ 
-          error: '업무 일지 생성에 실패했습니다.' 
-        }, { status: 500 })
-      }
+    if (insertError) {
+      console.error('Error creating work log:', insertError)
+      return NextResponse.json({ 
+        error: '업무 일지 생성에 실패했습니다.' 
+      }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { CharacterType } from '@/lib/types'
 import CalendarView from '@/components/work-log/CalendarView'
 import { Button } from '@/components/ui/button'
@@ -17,6 +18,8 @@ interface WorkLog {
   content: string
   created_at: string
   user_id: string
+  start_time: string | null
+  end_time: string | null
   profiles: Profile
 }
 
@@ -86,6 +89,12 @@ export default function LogsPage() {
     })
   }
 
+  const formatTime = (timeString: string | null) => {
+    if (!timeString) return 'N/A'
+    const date = new Date(timeString)
+    return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+  }
+
   const getCharacterEmoji = (characterType: CharacterType) => {
     const emojis: Record<CharacterType, string> = {
       character1: '🔴',
@@ -139,7 +148,7 @@ export default function LogsPage() {
             <select
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
             >
               <option value="">전체</option>
               {users.map(user => (
@@ -156,7 +165,7 @@ export default function LogsPage() {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
             />
           </div>
           
@@ -166,7 +175,7 @@ export default function LogsPage() {
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
             />
           </div>
           
@@ -217,12 +226,17 @@ export default function LogsPage() {
                         <div className="p-6">
                           <div className="flex items-start justify-between mb-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center">
-                                <span className="text-2xl">{getCharacterEmoji(log.profiles.character_type)}</span>
+                              <div className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden relative">
+                                <Image src={`/characters/${log.profiles.character_type}/working_1.png`} alt={log.profiles.username} fill className="object-cover" />
                               </div>
                               <div>
                                 <h3 className="font-bold text-lg text-gray-800">{log.profiles.username}</h3>
                                 <p className="text-sm text-gray-800 font-medium">{formatDate(log.date)}</p>
+                                <div className="text-xs text-gray-600 font-medium mt-1">
+                                  <span>출근: {formatTime(log.start_time)}</span>
+                                  <span className="mx-2">|</span>
+                                  <span>퇴근: {formatTime(log.end_time)}</span>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -251,12 +265,17 @@ export default function LogsPage() {
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center">
-                        <span className="text-2xl">{getCharacterEmoji(log.profiles.character_type)}</span>
+                      <div className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden relative">
+                        <Image src={`/characters/${log.profiles.character_type}/working_1.png`} alt={log.profiles.username} fill className="object-cover" />
                       </div>
                       <div>
                         <h3 className="font-bold text-lg text-gray-800">{log.profiles.username}</h3>
                         <p className="text-sm text-gray-800 font-medium">{formatDate(log.date)}</p>
+                        <div className="text-xs text-gray-600 font-medium mt-1">
+                          <span>출근: {formatTime(log.start_time)}</span>
+                          <span className="mx-2">|</span>
+                          <span>퇴근: {formatTime(log.end_time)}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
