@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-type Period = 'week' | 'month' | 'quarter'
+type Period = 'week' | 'month' | 'quarter' | 'custom'
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,21 +16,28 @@ export async function GET(request: NextRequest) {
     // Get query params
     const { searchParams } = new URL(request.url)
     const period = (searchParams.get('period') || 'week') as Period
+    const customStartDate = searchParams.get('startDate')
+    const customEndDate = searchParams.get('endDate')
 
     // Calculate date range
-    const endDate = new Date()
-    const startDate = new Date()
+    let endDate = new Date()
+    let startDate = new Date()
     
-    switch (period) {
-      case 'week':
-        startDate.setDate(endDate.getDate() - 7)
-        break
-      case 'month':
-        startDate.setDate(endDate.getDate() - 30)
-        break
-      case 'quarter':
-        startDate.setDate(endDate.getDate() - 90)
-        break
+    if (period === 'custom' && customStartDate && customEndDate) {
+      startDate = new Date(customStartDate)
+      endDate = new Date(customEndDate)
+    } else {
+      switch (period) {
+        case 'week':
+          startDate.setDate(endDate.getDate() - 7)
+          break
+        case 'month':
+          startDate.setDate(endDate.getDate() - 30)
+          break
+        case 'quarter':
+          startDate.setDate(endDate.getDate() - 90)
+          break
+      }
     }
 
     // Get user profile for level info

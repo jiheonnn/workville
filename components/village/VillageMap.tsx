@@ -82,24 +82,39 @@ export default function VillageMap() {
     console.log('fetchUsers called')
     const supabase = createClient()
 
-    // Get all users with their profiles and statuses
-    const { data: users, error } = await supabase
-      .from('profiles')
-      .select(`
-        id,
-        username,
-        character_type,
-        user_status (
-          status
-        )
-      `)
+    try {
+      // First check if we have a valid session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      console.log('Session check:', { session, sessionError })
+      
+      if (sessionError) {
+        console.error('Session error:', sessionError)
+        return
+      }
+      
+      if (!session) {
+        console.log('No active session found')
+        return
+      }
 
-    if (error) {
-      console.error('Error fetching users:', error)
-      return
-    }
+      // Get all users with their profiles and statuses
+      const { data: users, error } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          username,
+          character_type,
+          user_status (
+            status
+          )
+        `)
 
-    console.log('Fetched users:', users)
+      if (error) {
+        console.error('Error fetching users:', error)
+        return
+      }
+
+      console.log('Fetched users:', users)
 
     if (users) {
       // First, filter valid users
@@ -160,6 +175,9 @@ export default function VillageMap() {
       console.log('Setting characters:', characterData)
       setCharacters(characterData)
     }
+  } catch (error) {
+    console.error('Unexpected error in fetchUsers:', error)
+  }
   }, [])
 
   // Set up realtime subscription and initial fetch
@@ -167,8 +185,11 @@ export default function VillageMap() {
     console.log('VillageMap useEffect running')
     const supabase = createClient()
 
-    // Initial fetch
-    fetchUsers()
+    // Delay initial fetch to ensure auth is ready
+    const timer = setTimeout(() => {
+      fetchUsers()
+    }, 500)
+    
 
     // Set up realtime subscription
     const channel = supabase
@@ -197,6 +218,7 @@ export default function VillageMap() {
 
     // Cleanup
     return () => {
+      clearTimeout(timer)
       if (channelRef.current) {
         console.log('Cleaning up realtime subscription')
         supabase.removeChannel(channelRef.current)
@@ -206,6 +228,9 @@ export default function VillageMap() {
 
   // Refetch users when current user status changes
   // Removed to prevent duplicate fetching - realtime subscription handles updates
+
+  // Show loading state while auth is loading - removed this check
+  // The component should still work even if auth is loading
 
   return (
     <div className="w-full h-full">

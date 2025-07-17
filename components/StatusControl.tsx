@@ -10,7 +10,8 @@ export default function StatusControl() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const { 
     currentUserStatus, 
-    todaySession,
+    todaySessions,
+    totalDurationMinutes,
     isLoading, 
     error,
     fetchCurrentStatus,
@@ -114,21 +115,28 @@ export default function StatusControl() {
 
   // Calculate today's work time
   const getTodayWorkTime = () => {
-    if (!todaySession) return '0시간 0분'
+    let totalMinutes = totalDurationMinutes
     
-    let totalMinutes = 0
-    
-    if (todaySession.duration_minutes) {
-      totalMinutes = todaySession.duration_minutes
-    } else if (todaySession.check_in_time && (currentUserStatus === 'working' || currentUserStatus === 'break')) {
-      // Currently working or on break, calculate time since check-in
-      const checkInTime = new Date(todaySession.check_in_time)
-      totalMinutes = Math.floor((currentTime.getTime() - checkInTime.getTime()) / (1000 * 60))
+    // If currently working, add time since last check-in
+    const activeSession = todaySessions.find(session => !session.check_out_time)
+    if (activeSession && activeSession.check_in_time && (currentUserStatus === 'working' || currentUserStatus === 'break')) {
+      const checkInTime = new Date(activeSession.check_in_time)
+      const additionalMinutes = Math.floor((currentTime.getTime() - checkInTime.getTime()) / (1000 * 60))
+      totalMinutes += additionalMinutes
     }
     
     const hours = Math.floor(totalMinutes / 60)
     const minutes = totalMinutes % 60
     return `${hours}시간 ${minutes}분`
+  }
+
+  // Get the latest check-in time
+  const getLatestCheckInTime = () => {
+    if (!todaySessions || todaySessions.length === 0) return null
+    
+    // Find the most recent session
+    const latestSession = todaySessions[todaySessions.length - 1]
+    return latestSession?.check_in_time
   }
 
   return (
@@ -182,10 +190,13 @@ export default function StatusControl() {
               </span>
             </div>
             
-            {todaySession?.check_in_time && (
+            {getLatestCheckInTime() && (
               <div className="mt-3 text-xs text-gray-600 font-medium flex items-center gap-2">
                 <span className="text-emerald-600">⏰</span>
-                출근 시간: {new Date(todaySession.check_in_time).toLocaleTimeString('ko-KR')}
+                최근 출근: {new Date(getLatestCheckInTime()!).toLocaleTimeString('ko-KR', { 
+                  hour: '2-digit', 
+                  minute: '2-digit' 
+                })}
               </div>
             )}
           </div>

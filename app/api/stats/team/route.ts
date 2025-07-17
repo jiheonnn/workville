@@ -14,21 +14,28 @@ export async function GET(request: NextRequest) {
     // Get query params
     const { searchParams } = new URL(request.url)
     const period = searchParams.get('period') || 'week'
+    const customStartDate = searchParams.get('startDate')
+    const customEndDate = searchParams.get('endDate')
 
     // Calculate date range
-    const endDate = new Date()
-    const startDate = new Date()
+    let endDate = new Date()
+    let startDate = new Date()
     
-    switch (period) {
-      case 'week':
-        startDate.setDate(endDate.getDate() - 7)
-        break
-      case 'month':
-        startDate.setDate(endDate.getDate() - 30)
-        break
-      case 'quarter':
-        startDate.setDate(endDate.getDate() - 90)
-        break
+    if (period === 'custom' && customStartDate && customEndDate) {
+      startDate = new Date(customStartDate)
+      endDate = new Date(customEndDate)
+    } else {
+      switch (period) {
+        case 'week':
+          startDate.setDate(endDate.getDate() - 7)
+          break
+        case 'month':
+          startDate.setDate(endDate.getDate() - 30)
+          break
+        case 'quarter':
+          startDate.setDate(endDate.getDate() - 90)
+          break
+      }
     }
 
     // Get all team members with their work sessions

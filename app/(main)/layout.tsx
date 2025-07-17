@@ -18,9 +18,15 @@ export default function MainLayout({
   const { user, setUser, setLoading } = useAuthStore()
 
   useEffect(() => {
+    // Set loading to true at the start
+    setLoading(true)
+    
+    // Initial user check
     checkUser()
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.id)
+      
       if (session?.user) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -43,20 +49,34 @@ export default function MainLayout({
   }, [])
 
   const checkUser = async () => {
-    const { data: { user: authUser } } = await supabase.auth.getUser()
-    
-    if (authUser) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authUser.id)
-        .single()
+    try {
+      // Use getSession instead of getUser for better reliability
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       
-      if (profile) {
-        setUser(profile)
+      if (sessionError) {
+        console.error('Session error in checkUser:', sessionError)
+        setLoading(false)
+        return
       }
+      
+      if (session?.user) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+        
+        if (profileError) {
+          console.error('Profile fetch error:', profileError)
+        } else if (profile) {
+          setUser(profile)
+        }
+      }
+    } catch (error) {
+      console.error('Unexpected error in checkUser:', error)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const handleLogout = async () => {
@@ -73,7 +93,8 @@ export default function MainLayout({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
-      <nav className="bg-white/80 shadow-lg border-b border-gray-100/50 sticky top-0 z-50">
+      {/* Desktop Navigation - Top Bar */}
+      <nav className="hidden sm:block bg-white/80 shadow-lg border-b border-gray-100/50 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20">
             <div className="flex items-center">
@@ -82,7 +103,7 @@ export default function MainLayout({
                   Workville
                 </h1>
               </div>
-              <div className="hidden sm:ml-10 sm:flex sm:space-x-2">
+              <div className="ml-10 flex space-x-2">
                 {navItems.map((item) => (
                   <Link
                     key={item.href}
@@ -110,6 +131,7 @@ export default function MainLayout({
                         src={`/characters/character${user.character_type}/normal.png`}
                         alt={user.username}
                         fill
+                        sizes="32px"
                         className="object-cover"
                       />
                     </div>
@@ -132,9 +154,69 @@ export default function MainLayout({
           </div>
         </div>
       </nav>
-      <main className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8 animate-fadeIn">
+
+      {/* Mobile Header - Title and User Info */}
+      <div className="sm:hidden bg-white/80 shadow-lg border-b border-gray-100/50 sticky top-0 z-50">
+        <div className="px-4 py-3 flex justify-between items-center">
+          <h1 className="text-xl font-black bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
+            Workville
+          </h1>
+          {user && (
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-100 to-green-100">
+                <div className="w-6 h-6 rounded-full overflow-hidden relative">
+                  <Image 
+                    src={`/characters/character${user.character_type}/normal.png`}
+                    alt={user.username}
+                    fill
+                    sizes="24px"
+                    className="object-cover"
+                  />
+                </div>
+                <span className="text-xs font-semibold text-gray-800">
+                  {user.username}
+                </span>
+                <span className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-green-600">
+                  Lv.{user.level}
+                </span>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="text-xs text-gray-600 hover:text-gray-900"
+              >
+                로그아웃
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8 animate-fadeIn pb-20 sm:pb-8">
         {children}
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-gray-200 z-50">
+        <div className="flex justify-around py-2">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`
+                flex flex-col items-center px-3 py-2 rounded-lg transition-all duration-200
+                ${pathname === item.href 
+                  ? 'text-emerald-600 scale-110' 
+                  : 'text-gray-500 hover:text-gray-700'
+                }
+              `}
+            >
+              <span className="text-2xl mb-1">{item.icon}</span>
+              <span className="text-xs font-medium">{item.label}</span>
+            </Link>
+          ))}
+        </div>
+      </nav>
     </div>
   )
 }

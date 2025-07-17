@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import PersonalStatsView from '@/components/stats/PersonalStatsView'
 import TeamStatsView from '@/components/stats/TeamStatsView'
 
-type Period = 'week' | 'month' | 'quarter'
+type Period = 'week' | 'month' | 'quarter' | 'custom'
 
 interface PersonalStats {
   dailyStats: Array<{
@@ -60,25 +60,40 @@ export default function StatsPage() {
   const [teamStats, setTeamStats] = useState<TeamStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [customStartDate, setCustomStartDate] = useState<string>('')
+  const [customEndDate, setCustomEndDate] = useState<string>('')
 
   useEffect(() => {
+    if (period === 'custom' && (!customStartDate || !customEndDate)) {
+      return
+    }
     fetchStats()
-  }, [activeTab, period])
+  }, [activeTab, period, customStartDate, customEndDate])
 
   const fetchStats = async () => {
     try {
       setLoading(true)
       setError(null)
 
+      let url = ''
       if (activeTab === 'personal') {
-        const response = await fetch(`/api/stats/personal?period=${period}`)
-        if (!response.ok) throw new Error('Failed to fetch personal stats')
-        const data = await response.json()
+        url = `/api/stats/personal?period=${period}`
+      } else {
+        url = `/api/stats/team?period=${period}`
+      }
+
+      // Add custom date range if period is custom
+      if (period === 'custom' && customStartDate && customEndDate) {
+        url += `&startDate=${customStartDate}&endDate=${customEndDate}`
+      }
+
+      const response = await fetch(url)
+      if (!response.ok) throw new Error('Failed to fetch stats')
+      const data = await response.json()
+      
+      if (activeTab === 'personal') {
         setPersonalStats(data)
       } else {
-        const response = await fetch(`/api/stats/team?period=${period}`)
-        if (!response.ok) throw new Error('Failed to fetch team stats')
-        const data = await response.json()
         setTeamStats(data)
       }
     } catch (err) {
@@ -175,8 +190,42 @@ export default function StatsPage() {
             >
               3개월
             </button>
+            <button
+              onClick={() => setPeriod('custom')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
+                period === 'custom'
+                  ? 'bg-gradient-to-r from-gray-700 to-gray-900 text-white shadow-md'
+                  : 'bg-white text-gray-600 hover:bg-gray-50 border-2 border-gray-200'
+              }`}
+            >
+              기간 설정
+            </button>
           </div>
         </div>
+
+        {/* Custom Date Range Inputs */}
+        {period === 'custom' && (
+          <div className="flex gap-4 mb-6 p-4 bg-gray-50 rounded-xl animate-slideIn">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">시작일</label>
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-800"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">종료일</label>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-800"
+              />
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-50 text-red-700 p-5 rounded-xl mb-6 border border-red-200 animate-slideIn">

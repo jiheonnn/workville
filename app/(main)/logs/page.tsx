@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { CharacterType } from '@/lib/types'
 import CalendarView from '@/components/work-log/CalendarView'
-import { Button } from '@/components/ui/button'
 
 interface Profile {
   id: string
@@ -42,10 +41,18 @@ export default function LogsPage() {
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | undefined>()
+  const [allLogs, setAllLogs] = useState<WorkLog[]>([]) // Store all logs for calendar view
 
   useEffect(() => {
     fetchLogs()
   }, [selectedUserId, startDate, endDate])
+
+  // Fetch all logs when switching to calendar view
+  useEffect(() => {
+    if (viewMode === 'calendar' && allLogs.length === 0) {
+      fetchAllLogs()
+    }
+  }, [viewMode])
 
   const fetchLogs = async () => {
     try {
@@ -72,6 +79,26 @@ export default function LogsPage() {
     }
   }
 
+  const fetchAllLogs = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      // Fetch all logs without any filters for calendar view
+      const response = await fetch('/api/team-logs')
+      if (!response.ok) throw new Error('Failed to fetch logs')
+      
+      const data = await response.json()
+      setAllLogs(data.logs)
+      setUsers(data.users)
+    } catch (err) {
+      setError('업무일지를 불러오는데 실패했습니다.')
+      console.error('Error fetching all logs:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const clearFilters = () => {
     setSelectedUserId('')
     setStartDate('')
@@ -81,9 +108,8 @@ export default function LogsPage() {
 
   const handleCalendarDateSelect = (date: Date) => {
     setSelectedCalendarDate(date)
-    const dateStr = date.toISOString().split('T')[0]
-    setStartDate(dateStr)
-    setEndDate(dateStr)
+    // In calendar mode, we don't update the filters to keep all logs visible
+    // The filtering happens on the client side only
   }
 
   const formatDate = (dateString: string) => {
@@ -158,34 +184,44 @@ export default function LogsPage() {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-black bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">업무일지</h2>
         <div className="flex gap-2">
-          <Button
+          <button
             onClick={() => setViewMode('list')}
-            variant={viewMode === 'list' ? 'default' : 'outline'}
-            size="sm"
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
+              viewMode === 'list' 
+                ? 'bg-gradient-to-r from-gray-700 to-gray-900 text-white shadow-md' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
           >
             목록 보기
-          </Button>
-          <Button
+          </button>
+          <button
             onClick={() => setViewMode('calendar')}
-            variant={viewMode === 'calendar' ? 'default' : 'outline'}
-            size="sm"
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
+              viewMode === 'calendar' 
+                ? 'bg-gradient-to-r from-gray-700 to-gray-900 text-white shadow-md' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
           >
             캘린더 보기
-          </Button>
+          </button>
         </div>
       </div>
       
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
+      <div className="bg-gradient-to-r from-white to-gray-50 rounded-2xl shadow-lg border border-gray-100 p-6 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-lg">🔍</span>
+          <h3 className="text-sm font-semibold text-gray-700">검색 필터</h3>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-800 mb-1">팀원</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wider">팀원</label>
             <select
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+              className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 text-gray-800 font-medium"
             >
-              <option value="">전체</option>
+              <option value="">전체 팀원</option>
               {users.map(user => (
                 <option key={user.id} value={user.id}>
                   {getCharacterEmoji(user.character_type)} {user.username}
@@ -195,31 +231,31 @@ export default function LogsPage() {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-800 mb-1">시작일</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wider">시작일</label>
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+              className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 text-gray-800 font-medium"
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-800 mb-1">종료일</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wider">종료일</label>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+              className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all duration-200 text-gray-800 font-medium"
             />
           </div>
           
           <div className="flex items-end">
             <button
               onClick={clearFilters}
-              className="w-full p-2 text-gray-600 hover:text-gray-800 border rounded-lg hover:bg-gray-50"
+              className="w-full px-4 py-3 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 hover:text-gray-700 transition-all duration-200 text-sm font-medium"
             >
-              필터 초기화
+              초기화
             </button>
           </div>
         </div>
@@ -234,29 +270,39 @@ export default function LogsPage() {
 
       {/* Calendar or List View */}
       {viewMode === 'calendar' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1">
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+          <div className="xl:col-span-3">
             <CalendarView 
-              logs={logs}
+              logs={allLogs.length > 0 ? allLogs : logs}
               onDateSelect={handleCalendarDateSelect}
               selectedDate={selectedCalendarDate}
             />
           </div>
-          <div className="lg:col-span-2 space-y-4">
+          <div className="xl:col-span-2 space-y-4">
             <h3 className="font-bold text-xl text-gray-800">
               {selectedCalendarDate 
                 ? formatDate(selectedCalendarDate.toISOString())
                 : '날짜를 선택하세요'}
             </h3>
             {selectedCalendarDate && (
-              logs.filter(log => log.date === selectedCalendarDate.toISOString().split('T')[0])
-                .length === 0 ? (
+              (allLogs.length > 0 ? allLogs : logs).filter(log => {
+                const year = selectedCalendarDate.getFullYear()
+                const month = String(selectedCalendarDate.getMonth() + 1).padStart(2, '0')
+                const day = String(selectedCalendarDate.getDate()).padStart(2, '0')
+                const dateStr = `${year}-${month}-${day}`
+                return log.date === dateStr
+              }).length === 0 ? (
                   <div className="bg-gray-50 rounded-lg p-12 text-center">
                     <p className="text-gray-800">이 날짜에 작성된 업무일지가 없습니다.</p>
                   </div>
                 ) : (
-                  logs.filter(log => log.date === selectedCalendarDate.toISOString().split('T')[0])
-                    .map(log => (
+                  (allLogs.length > 0 ? allLogs : logs).filter(log => {
+                    const year = selectedCalendarDate.getFullYear()
+                    const month = String(selectedCalendarDate.getMonth() + 1).padStart(2, '0')
+                    const day = String(selectedCalendarDate.getDate()).padStart(2, '0')
+                    const dateStr = `${year}-${month}-${day}`
+                    return log.date === dateStr
+                  }).map(log => (
                       <div key={log.id} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]">
                         <div className="p-6">
                           <div className="flex items-start justify-between mb-4">

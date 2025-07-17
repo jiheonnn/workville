@@ -15,11 +15,19 @@ interface WorkSession {
   duration_minutes: number | null
 }
 
+interface VillageStoreData {
+  status: UserStatus
+  lastUpdated: string | null
+  todaySessions: WorkSession[]
+  totalDurationMinutes: number
+}
+
 interface VillageStore {
   // State
   users: Map<string, UserWithStatus>
   currentUserStatus: UserStatus
-  todaySession: WorkSession | null
+  todaySessions: WorkSession[]
+  totalDurationMinutes: number
   isLoading: boolean
   error: string | null
   onlineUsers: Set<string>
@@ -28,7 +36,8 @@ interface VillageStore {
   setUsers: (users: UserWithStatus[]) => void
   updateUserStatus: (userId: string, status: UserStatus) => void
   setCurrentUserStatus: (status: UserStatus) => void
-  setTodaySession: (session: WorkSession | null) => void
+  setTodaySessions: (sessions: WorkSession[]) => void
+  setTotalDurationMinutes: (minutes: number) => void
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
   setOnlineUsers: (userIds: string[]) => void
@@ -43,7 +52,8 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
   // Initial state
   users: new Map(),
   currentUserStatus: 'home',
-  todaySession: null,
+  todaySessions: [],
+  totalDurationMinutes: 0,
   isLoading: false,
   error: null,
   onlineUsers: new Set(),
@@ -69,7 +79,8 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
   },
 
   setCurrentUserStatus: (status) => set({ currentUserStatus: status }),
-  setTodaySession: (session) => set({ todaySession: session }),
+  setTodaySessions: (sessions) => set({ todaySessions: sessions }),
+  setTotalDurationMinutes: (minutes) => set({ totalDurationMinutes: minutes }),
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
 
@@ -98,7 +109,8 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
       const data = await response.json()
       set({
         currentUserStatus: data.status,
-        todaySession: data.todaySession,
+        todaySessions: data.todaySessions || [],
+        totalDurationMinutes: data.totalDurationMinutes || 0,
         isLoading: false
       })
     } catch (error) {

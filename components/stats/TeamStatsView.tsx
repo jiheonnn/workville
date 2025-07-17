@@ -93,10 +93,14 @@ const TeamStatsView = memo(({ stats, formatDate, getCharacterColor }: TeamStatsV
             <YAxis yAxisId="right" orientation="right" />
             <Tooltip 
               labelFormatter={(value) => `날짜: ${value}`}
-              formatter={(value: any, name: string) => [
-                name === 'hours' ? `${value}시간` : `${value}명`,
-                name === 'hours' ? '총 근무시간' : '활동 인원'
-              ]}
+              formatter={(value: any, name: string) => {
+                if (name === '총 근무시간') {
+                  return [`${value}시간`, name]
+                } else if (name === '활동 인원') {
+                  return [`${value}명`, name]
+                }
+                return [value, name]
+              }}
             />
             <Legend />
             <Line 
@@ -148,10 +152,13 @@ const TeamStatsView = memo(({ stats, formatDate, getCharacterColor }: TeamStatsV
                 <tr key={member.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div 
-                        className="w-10 h-10 rounded-full flex-shrink-0 shadow-md"
-                        style={{ background: `linear-gradient(135deg, ${getCharacterColor(member.characterType)}, ${getCharacterColor(member.characterType)}88)` }}
-                      />
+                      <div className="w-10 h-10 rounded-full flex-shrink-0 shadow-md overflow-hidden">
+                        <img 
+                          src={`/characters/character${member.characterType}/normal.png`}
+                          alt={member.username}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
                       <span className="ml-3 font-semibold text-gray-800">{member.username}</span>
                     </div>
                   </td>

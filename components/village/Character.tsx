@@ -55,23 +55,25 @@ export default function Character({ characterType, status, position, username, i
             <Image
               src={imagePath1}
               alt={`${username} - ${status}`}
-              width={80}
-              height={80}
+              width={512}
+              height={512}
               className="pixelated absolute inset-0 animate-character-frame-1"
               style={{
                 imageRendering: 'pixelated',
               }}
+              priority
               onError={handleImageError}
             />
             <Image
               src={imagePath2}
               alt={`${username} - ${status}`}
-              width={80}
-              height={80}
+              width={512}
+              height={512}
               className="pixelated absolute inset-0 animate-character-frame-2"
               style={{
                 imageRendering: 'pixelated',
               }}
+              priority
               onError={handleImageError}
             />
           </>

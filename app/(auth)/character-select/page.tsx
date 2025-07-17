@@ -63,30 +63,70 @@ export default function CharacterSelectPage() {
         return
       }
 
-      const { error: updateError } = await supabase
+      // 먼저 프로필이 있는지 확인
+      const { data: existingProfile } = await supabase
         .from('profiles')
-        .update({ character_type: selectedCharacter })
+        .select('id')
         .eq('id', user.id)
+        .single()
 
-      if (updateError) {
-        setError('캐릭터 선택 중 오류가 발생했습니다.')
-        console.error(updateError)
+      if (!existingProfile) {
+        // 프로필이 없으면 생성
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            email: user.email!,
+            username: user.user_metadata.username || user.email!.split('@')[0],
+            character_type: selectedCharacter
+          })
+
+        if (insertError) {
+          setError('프로필 생성 중 오류가 발생했습니다.')
+          console.error('Profile insert error:', insertError)
+          return
+        }
+
+        // user_status도 생성
+        const { error: statusError } = await supabase
+          .from('user_status')
+          .insert({
+            user_id: user.id,
+            status: 'home'
+          })
+
+        if (statusError) {
+          console.error('Status insert error:', statusError)
+        }
       } else {
-        router.push('/village')
-        router.refresh()
+        // 프로필이 있으면 업데이트
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ character_type: selectedCharacter })
+          .eq('id', user.id)
+
+        if (updateError) {
+          setError('캐릭터 선택 중 오류가 발생했습니다.')
+          console.error('Profile update error:', updateError)
+          return
+        }
       }
+
+      router.push('/village')
+      router.refresh()
     } catch (err) {
       setError('캐릭터 선택 중 오류가 발생했습니다.')
+      console.error('Character select error:', err)
     } finally {
       setLoading(false)
     }
   }
 
   const characters: { type: CharacterType; name: string; description: string }[] = [
-    { type: 1, name: '캐릭터 1', description: '활발하고 에너지 넘치는 캐릭터' },
-    { type: 2, name: '캐릭터 2', description: '차분하고 지적인 캐릭터' },
-    { type: 3, name: '캐릭터 3', description: '친근하고 따뜻한 캐릭터' },
-    { type: 4, name: '캐릭터 4', description: '창의적이고 독특한 캐릭터' },
+    { type: 1, name: '백지헌', description: '활발하고 에너지 넘치는 캐릭터' },
+    { type: 2, name: '권준희', description: '차분하고 지적인 캐릭터' },
+    { type: 3, name: '정현욱', description: '친근하고 따뜻한 캐릭터' },
+    { type: 4, name: '성민', description: '창의적이고 독특한 캐릭터' },
   ]
 
   return (
@@ -129,25 +169,23 @@ export default function CharacterSelectPage() {
                     : 'border-gray-300 hover:border-gray-400 cursor-pointer'
                 }`}
               >
-                <div className={`aspect-square rounded-lg mb-4 flex items-center justify-center relative overflow-hidden ${
-                  isTaken ? 'bg-gray-300' : 'bg-gray-200'
-                }`}>
+                <div className={`aspect-square rounded-lg mb-4 flex items-center justify-center relative overflow-hidden bg-gray-200`}>
                   <div className="relative w-full h-full">
                     <Image
-                      src={`/characters/character${character.type}/home_1.png`}
+                      src={`/characters/character${character.type}/normal.png`}
                       alt={character.name}
                       fill
-                      className={`object-contain p-4 ${isTaken ? 'filter grayscale' : ''}`}
+                      className={`object-contain p-4 ${isTaken ? 'opacity-50' : ''}`}
                       sizes="(max-width: 768px) 50vw, 25vw"
                     />
                   </div>
                   {isTaken && (
-                    <div className="absolute inset-0 bg-gray-900 bg-opacity-20 flex items-center justify-center">
-                      <span className="text-gray-700 font-semibold bg-white px-3 py-1 rounded">선택됨</span>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-gray-700 font-semibold bg-white bg-opacity-90 px-3 py-1 rounded shadow-md">선택됨</span>
                     </div>
                   )}
                 </div>
-                <h3 className={`font-semibold text-lg mb-1 ${isTaken ? 'text-gray-500' : ''}`}>
+                <h3 className="font-semibold text-lg mb-1 text-gray-900">
                   {character.name}
                 </h3>
                 <p className={`text-sm ${isTaken ? 'text-gray-400' : 'text-gray-600'}`}>
