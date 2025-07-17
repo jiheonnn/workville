@@ -39,7 +39,9 @@ export async function POST(request: NextRequest) {
     if (previousStatus === 'working' && status === 'home') {
       // User is ending work session (going home only, not break)
       // Find the open work session
-      const { data: openSession } = await supabase
+      console.log('Looking for open session for user:', user.id)
+      
+      const { data: openSession, error: sessionFindError } = await supabase
         .from('work_sessions')
         .select('id, check_in_time')
         .eq('user_id', user.id)
@@ -48,11 +50,14 @@ export async function POST(request: NextRequest) {
         .limit(1)
         .single()
 
+      console.log('Open session found:', openSession)
+      console.log('Session find error:', sessionFindError)
+
       if (openSession) {
-        // Calculate duration in minutes
+        // Calculate duration in minutes - round up for at least 1 minute
         const checkInTime = new Date(openSession.check_in_time)
         const checkOutTime = new Date(now)
-        const durationMinutes = Math.floor((checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60))
+        const durationMinutes = Math.max(1, Math.floor((checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60)))
 
         // Update work session with check-out time and duration
         const { error: sessionError } = await supabase
