@@ -37,6 +37,36 @@ export default function LoginPage() {
     }
   }
 
+  const handlePasswordReset = async () => {
+    if (!email) {
+      setError('비밀번호 재설정을 위해 이메일을 입력해주세요.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      console.log('Attempting password reset for:', email)
+      const { error, data } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+
+      console.log('Reset response:', { error, data })
+
+      if (error) {
+        console.error('Password reset error:', error)
+        setError(error.message)
+      } else {
+        setError(null)
+        alert('비밀번호 재설정 링크가 이메일로 전송되었습니다.')
+      }
+    } catch (err) {
+      console.error('Caught error:', err)
+      setError('비밀번호 재설정 중 오류가 발생했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div>
       <div className="text-center">
@@ -91,13 +121,22 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div>
+        <div className="space-y-3">
           <button
             type="submit"
             disabled={loading}
             className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? '로그인 중...' : '로그인'}
+            {loading ? '처리 중...' : '로그인'}
+          </button>
+          
+          <button
+            type="button"
+            onClick={handlePasswordReset}
+            disabled={loading}
+            className="w-full text-sm text-blue-600 hover:text-blue-500 focus:outline-none focus:underline disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            비밀번호를 잊으셨나요?
           </button>
         </div>
       </form>
