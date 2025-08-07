@@ -1,14 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createApiClient } from '@/lib/supabase/api-client'
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-  
-  const { error } = await supabase.auth.signOut()
-  
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  try {
+    const supabase = await createApiClient()
+    
+    const { error } = await supabase.auth.signOut()
+    
+    if (error) {
+      console.error('Logout error:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    
+    // Clear all cookies by setting them with Max-Age=0
+    const response = NextResponse.json({ success: true })
+    
+    // Clear Supabase auth cookies
+    response.cookies.set('sb-access-token', '', { maxAge: 0 })
+    response.cookies.set('sb-refresh-token', '', { maxAge: 0 })
+    
+    return response
+  } catch (error) {
+    console.error('Unexpected logout error:', error)
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : 'Logout failed' 
+    }, { status: 500 })
   }
-  
-  return NextResponse.json({ success: true })
 }

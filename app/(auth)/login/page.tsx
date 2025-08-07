@@ -27,8 +27,8 @@ export default function LoginPage() {
       if (error) {
         setError(error.message)
       } else {
-        router.push('/village')
-        router.refresh()
+        // Use window.location to force a full page reload for proper cookie sync
+        window.location.href = '/village'
       }
     } catch (err) {
       setError('로그인 중 오류가 발생했습니다.')

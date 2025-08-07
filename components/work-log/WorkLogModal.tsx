@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
 
 interface WorkLogModalProps {
   isOpen: boolean
@@ -24,23 +23,58 @@ export default function WorkLogModal({ isOpen, onClose, onSubmit }: WorkLogModal
 
   const fetchTemplate = async () => {
     try {
-      const supabase = createClient()
-      const { data, error } = await supabase
-        .from('work_log_template')
-        .select('content')
-        .single()
-
-      if (error) throw error
+      const response = await fetch('/api/template')
       
-      setTemplate(data.content)
-      setContent(data.content)
+      if (!response.ok) {
+        throw new Error('Failed to fetch template')
+      }
+
+      const { template } = await response.json()
+      
+      if (template && template.content) {
+        setTemplate(template.content)
+        setContent(template.content)
+      } else {
+        throw new Error('Template content not found')
+      }
     } catch (err) {
       console.error('Error fetching template:', err)
-      setContent('## 오늘 한 일\n- \n\n## 내일 할 일\n- \n\n## 이슈 및 특이사항\n- ')
+      // Use the actual template from database as fallback
+      const fallbackTemplate = `📝 오늘 한 일
+
+- 
+- 
+
+💡 ROI 자가 진단
+
+1. 오늘 한 일 중 가장 **ROI 높은 일**은?
+    
+    → 
+    
+2. 오늘 한 일 중 가장 **ROI 낮은 일**은?
+    
+    → 
+    
+3. 내일 가장 먼저 할 일 (ROI 기준)
+    
+    →
+    
+
+✅ 자가 피드백
+
+- 
+-`
+      setTemplate(fallbackTemplate)
+      setContent(fallbackTemplate)
     }
   }
 
   const handleSubmit = async () => {
+    console.log('handleSubmit called')
+    console.log('Content:', content)
+    console.log('Content length:', content.length)
+    console.log('Content trimmed:', content.trim())
+    
     if (!content.trim()) {
       setError('업무 일지 내용을 입력해주세요.')
       return
@@ -64,8 +98,8 @@ export default function WorkLogModal({ isOpen, onClose, onSubmit }: WorkLogModal
       }
 
       // Success - close modal and notify parent
+      console.log('Work log saved successfully, calling onSubmit')
       onSubmit()
-      onClose() // Close the modal after successful save
       setContent(template) // Reset to template
     } catch (err) {
       if (err instanceof Error) {

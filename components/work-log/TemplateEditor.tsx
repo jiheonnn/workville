@@ -23,12 +23,13 @@ export default function TemplateEditor() {
   // Fetch current template
   const fetchTemplate = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('work_log_template')
-        .select('*')
-        .single()
+      const response = await fetch('/api/template')
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch template')
+      }
 
-      if (error) throw error
+      const { template: data } = await response.json()
 
       setTemplate(data)
       setEditedContent(data.content)
@@ -36,7 +37,7 @@ export default function TemplateEditor() {
       console.error('Error fetching template:', err)
       setError('템플릿을 불러오는데 실패했습니다.')
     }
-  }, [supabase])
+  }, [])
 
   // Save template
   const saveTemplate = async () => {
@@ -46,16 +47,17 @@ export default function TemplateEditor() {
     setError(null)
 
     try {
-      const { error } = await supabase
-        .from('work_log_template')
-        .update({ 
-          content: editedContent,
-          updated_by: user.id,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', template.id)
+      const response = await fetch('/api/template', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: editedContent }),
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        throw new Error('Failed to save template')
+      }
 
       await fetchTemplate()
       setIsEditing(false)

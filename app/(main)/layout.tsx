@@ -14,12 +14,50 @@ export default function MainLayout({
 }) {
   const router = useRouter()
   const pathname = usePathname()
-  const supabase = createClient()
-  const { user, setUser, setLoading } = useAuthStore()
+  const { user, setUser, isLoading, setLoading } = useAuthStore()
 
   useEffect(() => {
+    const supabase = createClient()
+    
     // Set loading to true at the start
     setLoading(true)
+    
+    const checkUser = async () => {
+      console.log('checkUser started')
+      try {
+        // Use getSession instead of getUser for better reliability
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        
+        console.log('Session check:', session?.user?.id, sessionError)
+        
+        if (sessionError) {
+          console.error('Session error in checkUser:', sessionError)
+          setLoading(false)
+          return
+        }
+        
+        if (session?.user) {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single()
+          
+          console.log('Profile fetched:', profile, profileError)
+          
+          if (profileError) {
+            console.error('Profile fetch error:', profileError)
+          } else if (profile) {
+            setUser(profile)
+          }
+        }
+      } catch (error) {
+        console.error('Unexpected error in checkUser:', error)
+      } finally {
+        console.log('checkUser finally - setting loading false')
+        setLoading(false)
+      }
+    }
     
     // Initial user check
     checkUser()
@@ -40,48 +78,27 @@ export default function MainLayout({
       } else {
         setUser(null)
       }
-      setLoading(false)
     })
 
     return () => {
       subscription.unsubscribe()
     }
-  }, [])
-
-  const checkUser = async () => {
-    try {
-      // Use getSession instead of getUser for better reliability
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      
-      if (sessionError) {
-        console.error('Session error in checkUser:', sessionError)
-        setLoading(false)
-        return
-      }
-      
-      if (session?.user) {
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-        
-        if (profileError) {
-          console.error('Profile fetch error:', profileError)
-        } else if (profile) {
-          setUser(profile)
-        }
-      }
-    } catch (error) {
-      console.error('Unexpected error in checkUser:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [setUser, setLoading])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
+    const supabase = createClient()
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error('Logout error:', error)
+      }
+      // Force a full page reload to clear all state and cookies
+      window.location.href = '/login'
+    } catch (error) {
+      console.error('Unexpected logout error:', error)
+      // Even if there's an error, redirect to login
+      window.location.href = '/login'
+    }
   }
 
   const navItems = [
@@ -90,6 +107,8 @@ export default function MainLayout({
     { href: '/stats', label: '통계', icon: '📊' },
     { href: '/template', label: '템플릿', icon: '📋' },
   ]
+
+  // 로딩 체크 제거 - 바로 렌더링
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">

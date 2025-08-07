@@ -25,7 +25,7 @@ export default function VillageMap() {
   useRealtimePresence()
 
   // Calculate working and home users
-  const workingCount = characters.filter(char => char.status === 'working').length
+  const workingCount = characters.filter(char => char.status === 'working' || char.status === 'break').length
   const homeCount = characters.filter(char => char.status === 'home').length
 
   // Grid system: 9x7
@@ -77,119 +77,85 @@ export default function VillageMap() {
     }
   }
 
-  // Fetch users function - defined outside useEffect to avoid stale closure
-  const fetchUsers = useCallback(async () => {
-    console.log('fetchUsers called')
-    const supabase = createClient()
-
-    try {
-      // First check if we have a valid session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      console.log('Session check:', { session, sessionError })
-      
-      if (sessionError) {
-        console.error('Session error:', sessionError)
-        return
-      }
-      
-      if (!session) {
-        console.log('No active session found')
-        return
-      }
-
-      // Get all users with their profiles and statuses
-      const { data: users, error } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          username,
-          character_type,
-          user_status (
-            status
-          )
-        `)
-
-      if (error) {
-        console.error('Error fetching users:', error)
-        return
-      }
-
-      console.log('Fetched users:', users)
-
-    if (users) {
-      // First, filter valid users
-      const validUsers = users.filter(user => user.character_type !== null)
-      
-      // Group users by status to assign positions correctly
-      const usersByStatus: Record<UserStatus, typeof validUsers> = {
-        working: [],
-        home: [],
-        break: []
-      }
-      
-      validUsers.forEach(user => {
-        console.log(`User ${user.username} - user_status:`, user.user_status)
-        console.log(`Is array:`, Array.isArray(user.user_status))
-        
-        // Handle both array and object cases
-        let status: UserStatus = 'home'
-        if (user.user_status) {
-          if (Array.isArray(user.user_status) && user.user_status.length > 0) {
-            status = user.user_status[0].status
-          } else if (typeof user.user_status === 'object' && 'status' in user.user_status) {
-            status = user.user_status.status as UserStatus
-          }
-        }
-        
-        console.log(`Determined status: ${status}`)
-        usersByStatus[status].push(user)
-      })
-      
-      // Map users with correct position indices
-      const characterData: CharacterData[] = validUsers.map((user) => {
-        // Handle both array and object cases
-        let status: UserStatus = 'home'
-        if (user.user_status) {
-          if (Array.isArray(user.user_status) && user.user_status.length > 0) {
-            status = user.user_status[0].status
-          } else if (typeof user.user_status === 'object' && 'status' in user.user_status) {
-            status = user.user_status.status as UserStatus
-          }
-        }
-        
-        // Find the index of this user within their status group
-        const statusIndex = usersByStatus[status].findIndex(u => u.id === user.id)
-        const position = getPositionForStatus(status, statusIndex)
-        
-        console.log(`User ${user.username}: status=${status}, statusIndex=${statusIndex}, position=`, position)
-        
-        return {
-          id: user.id,
-          username: user.username || 'Anonymous',
-          characterType: user.character_type as CharacterType,
-          status: status,
-          position: position,
-        }
-      })
-      
-      console.log('Setting characters:', characterData)
-      setCharacters(characterData)
-    }
-  } catch (error) {
-    console.error('Unexpected error in fetchUsers:', error)
-  }
-  }, [])
-
   // Set up realtime subscription and initial fetch
   useEffect(() => {
-    console.log('VillageMap useEffect running')
     const supabase = createClient()
 
-    // Delay initial fetch to ensure auth is ready
-    const timer = setTimeout(() => {
-      fetchUsers()
-    }, 500)
-    
+    // Define fetchUsers inside useEffect to avoid React 19 concurrent rendering issues
+    const fetchUsers = async () => {
+      console.log('fetchUsers called - Starting...')
+      
+      try {
+        // Use API route instead of direct Supabase query to avoid client-side issues
+        const response = await fetch('/api/users')
+        
+        if (!response.ok) {
+          console.error('Failed to fetch users:', response.statusText)
+          return
+        }
+
+        const { users } = await response.json()
+        console.log('Fetched users data:', users)
+        
+        if (users) {
+          // First, filter valid users
+          const validUsers = users.filter(user => user.character_type !== null)
+          
+          // Group users by status to assign positions correctly
+          const usersByStatus: Record<UserStatus, typeof validUsers> = {
+            working: [],
+            home: [],
+            break: []
+          }
+          
+          validUsers.forEach(user => {
+            // Handle both array and object cases
+            let status: UserStatus = 'home'
+            if (user.user_status) {
+              if (Array.isArray(user.user_status) && user.user_status.length > 0) {
+                status = user.user_status[0].status as UserStatus
+              } else if (typeof user.user_status === 'object' && 'status' in user.user_status) {
+                status = user.user_status.status as UserStatus
+              }
+            }
+            usersByStatus[status].push(user)
+          })
+          
+          // Map users with correct position indices
+          const characterData: CharacterData[] = validUsers.map((user) => {
+            // Handle both array and object cases
+            let status: UserStatus = 'home'
+            if (user.user_status) {
+              if (Array.isArray(user.user_status) && user.user_status.length > 0) {
+                status = user.user_status[0].status
+              } else if (typeof user.user_status === 'object' && 'status' in user.user_status) {
+                status = user.user_status.status as UserStatus
+              }
+            }
+            
+            // Find the index of this user within their status group
+            const statusIndex = usersByStatus[status].findIndex(u => u.id === user.id)
+            const position = getPositionForStatus(status, statusIndex)
+            
+            return {
+              id: user.id,
+              username: user.username || 'Anonymous',
+              characterType: user.character_type as CharacterType,
+              status: status,
+              position: position,
+            }
+          })
+          
+          console.log('Setting characters:', characterData)
+          setCharacters(characterData)
+        }
+      } catch (error) {
+        console.error('Unexpected error in fetchUsers:', error)
+      }
+    }
+
+    // Initial fetch
+    fetchUsers()
 
     // Set up realtime subscription
     const channel = supabase
@@ -201,30 +167,22 @@ export default function VillageMap() {
           schema: 'public',
           table: 'user_status',
         },
-        async (payload) => {
-          console.log('Realtime event received:', payload)
-          console.log('Event type:', payload.eventType)
-          console.log('Old record:', payload.old)
-          console.log('New record:', payload.new)
+        () => {
           // Refetch users when status changes
-          await fetchUsers()
+          fetchUsers()
         }
       )
-      .subscribe((status) => {
-        console.log('Realtime subscription status:', status)
-      })
+      .subscribe()
 
     channelRef.current = channel
 
     // Cleanup
     return () => {
-      clearTimeout(timer)
       if (channelRef.current) {
-        console.log('Cleaning up realtime subscription')
         supabase.removeChannel(channelRef.current)
       }
     }
-  }, [fetchUsers])
+  }, [])
 
   // Refetch users when current user status changes
   // Removed to prevent duplicate fetching - realtime subscription handles updates
@@ -290,8 +248,8 @@ export default function VillageMap() {
               <div className="absolute inset-0 grid grid-cols-9 grid-rows-7 gap-1.5 p-6" style={{ zIndex: 9999 }}>
                 {/* Render characters */}
                 {characters.map((character) => {
-                  const isOnline = onlineUsers.has(character.id)
-                  console.log(`Rendering ${character.username}: isOnline=${isOnline}, onlineUsers=`, Array.from(onlineUsers))
+                  // Consider users as online if they are working or on break
+                  const isOnline = character.status === 'working' || character.status === 'break'
                   return (
                     <Character
                       key={character.id}
