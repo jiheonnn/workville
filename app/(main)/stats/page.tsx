@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import PersonalStatsView from '@/components/stats/PersonalStatsView'
 import TeamStatsView from '@/components/stats/TeamStatsView'
+import MemberStatsView from '@/components/stats/MemberStatsView'
 
 type Period = 'week' | 'month' | 'quarter' | 'custom'
 
@@ -53,22 +54,75 @@ interface TeamStats {
   }>
 }
 
+interface MemberStats {
+  member: {
+    id: string
+    username: string
+    characterType: string
+    level: number
+  }
+  dailyStats: Array<{
+    date: string
+    hours: number
+    dayOfWeek: string
+    checkIn: string | null
+    checkOut: string | null
+  }>
+  summary: {
+    totalHours: number
+    averageHours: number
+    workDays: number
+    period: string
+    earliestCheckIn: string | null
+    latestCheckOut: string | null
+    mostProductiveDay: string | null
+  }
+  weeklyPattern: Array<{
+    week: string
+    hours: number
+  }>
+}
+
 export default function StatsPage() {
-  const [activeTab, setActiveTab] = useState<'personal' | 'team'>('personal')
+  const [activeTab, setActiveTab] = useState<'personal' | 'team' | 'member'>('personal')
   const [period, setPeriod] = useState<Period>('week')
   const [personalStats, setPersonalStats] = useState<PersonalStats | null>(null)
   const [teamStats, setTeamStats] = useState<TeamStats | null>(null)
+  const [memberStats, setMemberStats] = useState<MemberStats | null>(null)
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
+  const [teamMembers, setTeamMembers] = useState<Array<{id: string, username: string, characterType: string}>>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [customStartDate, setCustomStartDate] = useState<string>('')
   const [customEndDate, setCustomEndDate] = useState<string>('')
 
   useEffect(() => {
+    fetchTeamMembers()
+  }, [])
+
+  useEffect(() => {
     if (period === 'custom' && (!customStartDate || !customEndDate)) {
       return
     }
+    if (activeTab === 'member' && !selectedMemberId) {
+      return
+    }
     fetchStats()
-  }, [activeTab, period, customStartDate, customEndDate])
+  }, [activeTab, period, customStartDate, customEndDate, selectedMemberId])
+
+  const fetchTeamMembers = async () => {
+    try {
+      const response = await fetch('/api/team/members')
+      if (!response.ok) throw new Error('Failed to fetch team members')
+      const data = await response.json()
+      setTeamMembers(data.members || [])
+      if (data.members && data.members.length > 0) {
+        setSelectedMemberId(data.members[0].id)
+      }
+    } catch (err) {
+      console.error('Error fetching team members:', err)
+    }
+  }
 
   const fetchStats = async () => {
     try {
@@ -78,8 +132,10 @@ export default function StatsPage() {
       let url = ''
       if (activeTab === 'personal') {
         url = `/api/stats/personal?period=${period}`
-      } else {
+      } else if (activeTab === 'team') {
         url = `/api/stats/team?period=${period}`
+      } else if (activeTab === 'member' && selectedMemberId) {
+        url = `/api/stats/member?userId=${selectedMemberId}&period=${period}`
       }
 
       // Add custom date range if period is custom
@@ -93,8 +149,10 @@ export default function StatsPage() {
       
       if (activeTab === 'personal') {
         setPersonalStats(data)
-      } else {
+      } else if (activeTab === 'team') {
         setTeamStats(data)
+      } else if (activeTab === 'member') {
+        setMemberStats(data)
       }
     } catch (err) {
       setError('통계를 불러오는데 실패했습니다.')
@@ -146,7 +204,7 @@ export default function StatsPage() {
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            👤 개인 통계
+            👤 내 통계
           </button>
           <button
             onClick={() => setActiveTab('team')}
@@ -157,6 +215,16 @@ export default function StatsPage() {
             }`}
           >
             👥 팀 통계
+          </button>
+          <button
+            onClick={() => setActiveTab('member')}
+            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+              activeTab === 'member'
+                ? 'bg-gradient-to-r from-emerald-600 to-green-600 text-white shadow-lg shadow-emerald-600/25 scale-105'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            📊 팀원별 통계
           </button>
 
           <div className="ml-auto flex gap-2">
@@ -241,6 +309,35 @@ export default function StatsPage() {
         {/* Team Stats */}
         {activeTab === 'team' && teamStats && (
           <TeamStatsView stats={teamStats} formatDate={formatDate} getCharacterColor={getCharacterColor} />
+        )}
+
+        {/* Member Stats */}
+        {activeTab === 'member' && (
+          <div className="animate-fadeIn">
+            {/* Member Selection */}
+            <div className="mb-6 p-4 bg-gray-50 rounded-xl">
+              <label className="block text-sm font-medium text-gray-700 mb-2">팀원 선택</label>
+              <select
+                value={selectedMemberId || ''}
+                onChange={(e) => setSelectedMemberId(e.target.value)}
+                className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-800"
+              >
+                {teamMembers.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.username}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {memberStats && (
+              <MemberStatsView 
+                stats={memberStats} 
+                formatDate={formatDate} 
+                getCharacterColor={getCharacterColor}
+              />
+            )}
+          </div>
         )}
       </div>
     </div>
