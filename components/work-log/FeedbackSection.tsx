@@ -17,7 +17,7 @@ export default function FeedbackSection() {
         value={currentLog.feedback}
         onChange={(e) => updateField('feedback', e.target.value)}
         placeholder="오늘 하루를 돌아보며 느낀 점, 개선할 점, 잘한 점 등을 자유롭게 적어주세요..."
-        className="w-full min-h-[120px] px-4 py-3 bg-white rounded-lg border border-purple-200 focus:border-purple-400 focus:outline-none transition-colors resize-y"
+        className="w-full min-h-[120px] px-4 py-3 bg-white text-black rounded-lg border border-purple-200 focus:border-purple-400 focus:outline-none transition-colors resize-y placeholder:text-gray-500"
       />
       
       <p className="mt-2 text-xs text-gray-600">

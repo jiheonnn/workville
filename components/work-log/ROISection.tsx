@@ -23,7 +23,7 @@ export default function ROISection() {
             value={currentLog.roi_high}
             onChange={(e) => updateField('roi_high', e.target.value)}
             placeholder="가장 가치 있었던 일을 적어주세요"
-            className="w-full px-4 py-2 bg-white rounded-lg border border-yellow-200 focus:border-yellow-400 focus:outline-none transition-colors"
+            className="w-full px-4 py-2 bg-white text-black rounded-lg border border-yellow-200 focus:border-yellow-400 focus:outline-none transition-colors placeholder:text-gray-500"
           />
         </div>
 
@@ -36,7 +36,7 @@ export default function ROISection() {
             value={currentLog.roi_low}
             onChange={(e) => updateField('roi_low', e.target.value)}
             placeholder="개선이 필요한 일을 적어주세요"
-            className="w-full px-4 py-2 bg-white rounded-lg border border-yellow-200 focus:border-yellow-400 focus:outline-none transition-colors"
+            className="w-full px-4 py-2 bg-white text-black rounded-lg border border-yellow-200 focus:border-yellow-400 focus:outline-none transition-colors placeholder:text-gray-500"
           />
         </div>
 
@@ -49,7 +49,7 @@ export default function ROISection() {
             value={currentLog.tomorrow_priority}
             onChange={(e) => updateField('tomorrow_priority', e.target.value)}
             placeholder="내일 최우선 과제를 적어주세요"
-            className="w-full px-4 py-2 bg-white rounded-lg border border-yellow-200 focus:border-yellow-400 focus:outline-none transition-colors"
+            className="w-full px-4 py-2 bg-white text-black rounded-lg border border-yellow-200 focus:border-yellow-400 focus:outline-none transition-colors placeholder:text-gray-500"
           />
         </div>
       </div>

@@ -109,11 +109,19 @@ function formatStatusChangeMessage(data: StatusChangeData): string {
 export async function sendWorkSummaryNotification(
   username: string,
   durationMinutes: number,
-  breakMinutes: number
+  breakMinutes: number,
+  workLog?: any
 ): Promise<boolean> {
+  console.log('=== sendWorkSummaryNotification called ===')
+  console.log('Username:', username)
+  console.log('Duration:', durationMinutes)
+  console.log('Break:', breakMinutes)
+  console.log('WorkLog:', JSON.stringify(workLog, null, 2))
+  
   const webhookUrl = process.env.SLACK_WEBHOOK_URL
   
   if (!webhookUrl) {
+    console.log('No webhook URL configured')
     return true
   }
 
@@ -139,8 +147,60 @@ export async function sendWorkSummaryNotification(
       }
     }
 
-    const message = `📊 *${username}*님의 오늘 근무 요약\n   • 근무 시간: ${workTimeText}${breakTimeText}`
+    // 기본 메시지 생성
+    let message = `📊 *${username}*님의 오늘 근무 요약\n   • 근무 시간: ${workTimeText}${breakTimeText}`
+    
+    // 업무일지가 있으면 내용 추가
+    console.log('Checking workLog for content...')
+    console.log('workLog exists:', !!workLog)
+    if (workLog) {
+      console.log('workLog.todos:', workLog.todos)
+      console.log('workLog.completed_todos:', workLog.completed_todos)
+      console.log('workLog.roi_high:', workLog.roi_high)
+      console.log('workLog.feedback:', workLog.feedback)
+      try {
+        // 완료된 할 일 추가
+        if (workLog.completed_todos && workLog.completed_todos.length > 0) {
+          message += '\n\n✅ *완료한 업무*'
+          workLog.completed_todos.forEach((todo: any) => {
+            message += `\n   • ${todo.text}`
+          })
+        }
+        
+        // 미완료 할 일 추가
+        if (workLog.todos && workLog.todos.length > 0) {
+          message += '\n\n⏳ *진행 중인 업무*'
+          workLog.todos.forEach((todo: any) => {
+            message += `\n   • ${todo.text}`
+          })
+        }
+        
+        // ROI 평가 추가
+        if (workLog.roi_high || workLog.roi_low || workLog.tomorrow_priority) {
+          message += '\n\n💡 *ROI 자가진단*'
+          if (workLog.roi_high) {
+            message += `\n   • 가장 ROI 높은 일: ${workLog.roi_high}`
+          }
+          if (workLog.roi_low) {
+            message += `\n   • 가장 ROI 낮은 일: ${workLog.roi_low}`
+          }
+          if (workLog.tomorrow_priority) {
+            message += `\n   • 내일 최우선 과제: ${workLog.tomorrow_priority}`
+          }
+        }
+        
+        // 자가 피드백 추가
+        if (workLog.feedback) {
+          message += '\n\n💭 *자가 피드백*'
+          message += `\n   ${workLog.feedback}`
+        }
+      } catch (error) {
+        console.error('Error processing work log:', error)
+      }
+    }
 
+    console.log('Final message to send:', message)
+    
     const payload: SlackMessage = {
       text: message,
       username: 'Workville 알림봇',

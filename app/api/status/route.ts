@@ -100,14 +100,14 @@ export async function POST(request: NextRequest) {
 
         // Update total work hours in profile
         const hoursWorked = durationMinutes / 60
-        const { data: profile } = await supabase
+        const { data: profileForUpdate } = await supabase
           .from('profiles')
           .select('total_work_hours')
           .eq('id', user.id)
           .single()
 
-        if (profile) {
-          const newTotalHours = (profile.total_work_hours || 0) + hoursWorked
+        if (profileForUpdate) {
+          const newTotalHours = (profileForUpdate.total_work_hours || 0) + hoursWorked
           const newLevel = Math.floor(newTotalHours / 8) + 1
 
           const { error: profileError } = await supabase
@@ -127,12 +127,32 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        // Get work log for today to include in notification
+        let workLog = null
+        const today = getTodayKorea()
+        console.log('Fetching work log for date:', today, 'user:', user.id)
+        
+        const { data: workLogData, error: workLogError } = await supabase
+          .from('work_logs')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('date', today)
+          .single()
+        
+        console.log('Work log data:', workLogData)
+        console.log('Work log error:', workLogError)
+        
+        if (workLogData) {
+          workLog = workLogData
+        }
+
         // Send work summary notification when checking out
         if (profile?.username) {
           await sendWorkSummaryNotification(
             profile.username,
             durationMinutes,
-            totalBreakMinutes
+            totalBreakMinutes,
+            workLog
           )
         }
       }
