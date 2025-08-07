@@ -99,7 +99,7 @@ export default function VillageMap() {
         
         if (users) {
           // First, filter valid users
-          const validUsers = users.filter(user => user.character_type !== null)
+          const validUsers = users.filter((user: any) => user.character_type !== null)
           
           // Group users by status to assign positions correctly
           const usersByStatus: Record<UserStatus, typeof validUsers> = {
@@ -108,7 +108,7 @@ export default function VillageMap() {
             break: []
           }
           
-          validUsers.forEach(user => {
+          validUsers.forEach((user: any) => {
             // Handle both array and object cases
             let status: UserStatus = 'home'
             if (user.user_status) {
@@ -122,7 +122,7 @@ export default function VillageMap() {
           })
           
           // Map users with correct position indices
-          const characterData: CharacterData[] = validUsers.map((user) => {
+          const characterData: CharacterData[] = validUsers.map((user: any) => {
             // Handle both array and object cases
             let status: UserStatus = 'home'
             if (user.user_status) {
@@ -134,7 +134,7 @@ export default function VillageMap() {
             }
             
             // Find the index of this user within their status group
-            const statusIndex = usersByStatus[status].findIndex(u => u.id === user.id)
+            const statusIndex = usersByStatus[status].findIndex((u: any) => u.id === user.id)
             const position = getPositionForStatus(status, statusIndex)
             
             return {

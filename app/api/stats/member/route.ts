@@ -149,7 +149,7 @@ export async function GET(request: Request) {
     ).day
 
     // Calculate weekly pattern
-    const weeklyPattern = []
+    const weeklyPattern: Array<{ week: string; hours: number }> = []
     const weekMap = new Map<string, number>()
     
     dailyStats.forEach(day => {

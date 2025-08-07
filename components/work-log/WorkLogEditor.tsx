@@ -21,7 +21,7 @@ export default function WorkLogEditor() {
       if (currentLog && currentLog.date !== today) {
         createNewLog(today)
       } else {
-        loadTodayLog(null)
+        loadTodayLog(undefined)
       }
     } else {
       // Active work session - load checkInDate log
@@ -40,7 +40,7 @@ export default function WorkLogEditor() {
     
     // Load the appropriate log
     if (checkInDate === null) {
-      loadTodayLog(null)
+      loadTodayLog(undefined)
     } else if (checkInDate) {
       loadTodayLog(checkInDate)
     }
@@ -61,7 +61,7 @@ export default function WorkLogEditor() {
       <div className="text-center py-12">
         <p className="text-gray-600">업무일지를 불러오는 중 오류가 발생했습니다.</p>
         <button
-          onClick={loadTodayLog}
+          onClick={() => loadTodayLog()}
           className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
         >
           다시 시도

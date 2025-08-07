@@ -4,7 +4,7 @@ import { debounce } from '@/lib/utils'
 
 export function useAutoSave() {
   const { currentLog, isDirty, saveToDB, saveToLocalStorage } = useWorkLogStore()
-  const saveTimerRef = useRef<NodeJS.Timeout>()
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Debounced save to localStorage (1 second)
   const debouncedLocalSave = useCallback(

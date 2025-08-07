@@ -3,9 +3,10 @@ import { createApiClient } from '@/lib/supabase/api-client'
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const supabase = await createApiClient()
     
     // Get authenticated user
@@ -39,7 +40,7 @@ export async function PATCH(
         feedback,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', user.id) // Ensure user owns this log
       .select()
       .single()

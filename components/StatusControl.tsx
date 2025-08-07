@@ -132,7 +132,7 @@ export default function StatusControl() {
       setShowWorkLogModal(false)
       // Clear the check-in date when going home
       const { setCheckInDate } = await import('@/lib/stores/work-log-store').then(m => m.useWorkLogStore.getState())
-      setCheckInDate(null)
+      setCheckInDate('')
     }
   }
 
