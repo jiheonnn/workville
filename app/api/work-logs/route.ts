@@ -41,17 +41,54 @@ export async function POST(request: NextRequest) {
     const existingLog = existingLogs && existingLogs.length > 0 ? existingLogs[0] : null
 
     if (existingLog) {
-      // Update existing log
+      // Get existing log data to merge
+      const { data: existingData } = await supabase
+        .from('work_logs')
+        .select('*')
+        .eq('id', existingLog.id)
+        .single()
+
+      if (!existingData) {
+        return NextResponse.json({ 
+          error: '기존 업무 일지를 찾을 수 없습니다.' 
+        }, { status: 500 })
+      }
+
+      // Merge content with session separator
+      const sessionNumber = (existingData.content.match(/\[세션 \d+\]/g)?.length || 0) + 1
+      const mergedContent = existingData.content 
+        ? `${existingData.content}\n\n---\n\n[세션 ${sessionNumber}]\n${content}`
+        : content
+
+      // Merge arrays (remove duplicates)
+      const mergedTodos = [...(existingData.todos || []), ...(todos || [])]
+        .filter((todo, index, self) => 
+          index === self.findIndex((t) => JSON.stringify(t) === JSON.stringify(todo))
+        )
+      
+      const mergedCompletedTodos = [...(existingData.completed_todos || []), ...(completed_todos || [])]
+        .filter((todo, index, self) => 
+          index === self.findIndex((t) => JSON.stringify(t) === JSON.stringify(todo))
+        )
+
+      // Merge text fields with separator if both exist
+      const mergeTextField = (existing: string | null, new_value: string) => {
+        if (!existing || existing === '') return new_value
+        if (!new_value || new_value === '') return existing
+        return `${existing}\n---\n${new_value}`
+      }
+
+      // Update existing log with merged data
       const { data, error: updateError } = await supabase
         .from('work_logs')
         .update({
-          content,
-          todos,
-          completed_todos,
-          roi_high,
-          roi_low,
-          tomorrow_priority,
-          feedback,
+          content: mergedContent,
+          todos: mergedTodos,
+          completed_todos: mergedCompletedTodos,
+          roi_high: mergeTextField(existingData.roi_high, roi_high),
+          roi_low: mergeTextField(existingData.roi_low, roi_low),
+          tomorrow_priority: mergeTextField(existingData.tomorrow_priority, tomorrow_priority),
+          feedback: mergeTextField(existingData.feedback, feedback),
           updated_at: new Date().toISOString()
         })
         .eq('id', existingLog.id)
@@ -65,7 +102,7 @@ export async function POST(request: NextRequest) {
         }, { status: 500 })
       }
 
-      return NextResponse.json({ success: true, id: data.id })
+      return NextResponse.json({ success: true, id: data.id, merged: true })
     } else {
       // Create new log
       const { data, error: insertError } = await supabase
