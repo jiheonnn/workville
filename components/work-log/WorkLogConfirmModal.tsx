@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useWorkLogStore } from '@/lib/stores/work-log-store'
 
 interface WorkLogConfirmModalProps {
   isOpen: boolean
@@ -20,30 +21,87 @@ interface WorkLog {
 export default function WorkLogConfirmModal({ isOpen, onClose, onConfirm }: WorkLogConfirmModalProps) {
   const [workLog, setWorkLog] = useState<WorkLog | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [displayDate, setDisplayDate] = useState<string | null>(null)
+  const { checkInDate } = useWorkLogStore()
 
   useEffect(() => {
     if (isOpen) {
       fetchTodayWorkLog()
+    } else {
+      // Reset state when modal closes
+      setWorkLog(null)
     }
-  }, [isOpen])
+  }, [isOpen, checkInDate])
 
   const fetchTodayWorkLog = async () => {
     setIsLoading(true)
     try {
-      const today = new Date().toISOString().split('T')[0]
-      const response = await fetch(`/api/work-logs?date=${today}`)
+      // First try to get active session to determine the correct date
+      let targetDate = checkInDate
+      
+      if (!targetDate) {
+        // If no checkInDate in store, try to get from active session
+        try {
+          const sessionResponse = await fetch('/api/work-sessions/today')
+          if (sessionResponse.ok) {
+            const { session } = await sessionResponse.json()
+            if (session && session.date) {
+              targetDate = session.date
+              console.log('Using date from active session:', targetDate)
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch active session:', error)
+        }
+      }
+      
+      // If still no date, use today
+      if (!targetDate) {
+        targetDate = new Date().toISOString().split('T')[0]
+        console.log('No active session found, using today:', targetDate)
+      }
+      
+      console.log('Fetching work log for date:', targetDate)
+      setDisplayDate(targetDate)
+      
+      const response = await fetch(`/api/work-logs?date=${targetDate}`)
       
       if (!response.ok) {
         throw new Error('Failed to fetch work log')
       }
 
       const { logs } = await response.json()
+      console.log('Fetched logs:', logs)
+      console.log('Target date:', targetDate)
       
       if (logs && logs.length > 0) {
-        setWorkLog(logs[0])
+        // Filter logs to find the exact date match
+        const targetLog = logs.find((log: any) => log.date === targetDate)
+        
+        if (targetLog) {
+          console.log('Found log for target date:', targetLog)
+          // Ensure arrays are properly formatted
+          setWorkLog({
+            todos: Array.isArray(targetLog.todos) ? targetLog.todos : [],
+            completed_todos: Array.isArray(targetLog.completed_todos) ? targetLog.completed_todos : [],
+            roi_high: targetLog.roi_high || '',
+            roi_low: targetLog.roi_low || '',
+            tomorrow_priority: targetLog.tomorrow_priority || '',
+            feedback: targetLog.feedback || ''
+          })
+        } else {
+          console.log('No log found matching target date in returned logs')
+          console.log('First log date:', logs[0].date)
+          console.log('All log dates:', logs.map((l: any) => l.date))
+          setWorkLog(null)
+        }
+      } else {
+        console.log('No work log found for date:', targetDate)
+        setWorkLog(null)
       }
     } catch (err) {
       console.error('Error fetching work log:', err)
+      setWorkLog(null)
     } finally {
       setIsLoading(false)
     }
@@ -56,9 +114,11 @@ export default function WorkLogConfirmModal({ isOpen, onClose, onConfirm }: Work
       <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden transform transition-all duration-300 scale-100 animate-slideIn">
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 border-b border-gray-100">
           <h2 className="text-2xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            오늘의 업무일지 확인
+            업무일지 확인
           </h2>
-          <p className="text-gray-600 mt-1 text-sm">퇴근 전 오늘의 업무를 확인해주세요</p>
+          <p className="text-gray-600 mt-1 text-sm">
+            {displayDate ? `${displayDate} 업무일지` : '퇴근 전 오늘의 업무를 확인해주세요'}
+          </p>
         </div>
 
         <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 180px)' }}>

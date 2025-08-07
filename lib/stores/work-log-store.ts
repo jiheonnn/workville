@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { getTodayKorea } from '@/lib/utils/date'
 
 export interface TodoItem {
   id: string
@@ -29,9 +30,11 @@ interface WorkLogStore {
   lastSavedAt: Date | null
   isDirty: boolean
   checkInDate: string | null // 출근 날짜 저장
+  lastSessionDate: string | null // 마지막 세션 날짜 저장
 
   // Actions
   loadTodayLog: (checkInDate?: string) => Promise<void>
+  fetchLastSessionDate: () => Promise<void>
   createNewLog: (date?: string) => void
   updateField: (field: keyof WorkLog, value: any) => void
   addTodo: (text: string) => void
@@ -48,8 +51,8 @@ interface WorkLogStore {
 }
 
 const getToday = () => {
-  // Use consistent date formatting
-  return new Date().toISOString().split('T')[0]
+  // Use Korean timezone for consistent date formatting
+  return getTodayKorea()
 }
 
 const createEmptyLog = (date?: string): WorkLog => ({
@@ -71,16 +74,45 @@ export const useWorkLogStore = create<WorkLogStore>()(
       lastSavedAt: null,
       isDirty: false,
       checkInDate: null,
+      lastSessionDate: null,
 
-      loadTodayLog: async (checkInDate?: string) => {
+      fetchLastSessionDate: async () => {
+        try {
+          const response = await fetch('/api/work-sessions/today')
+          if (response.ok) {
+            const { lastSession } = await response.json()
+            if (lastSession?.date) {
+              set({ lastSessionDate: lastSession.date })
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching last session date:', error)
+        }
+      },
+
+      loadTodayLog: async (checkInDate?: string | null) => {
         set({ isLoading: true, error: null })
         
-        // Use checkInDate if provided, otherwise use stored checkInDate, fallback to today
-        const targetDate = checkInDate || get().checkInDate || getToday()
+        let targetDate: string
         
-        // Store the checkInDate
-        if (checkInDate) {
+        // If null is explicitly passed, fetch fresh last session date
+        if (checkInDate === null) {
+          // Always fetch fresh last session date when no checkInDate
+          await get().fetchLastSessionDate()
+          targetDate = get().lastSessionDate || getToday()
+          set({ checkInDate: null })
+        }
+        // If a date string is provided, use it
+        else if (checkInDate) {
+          targetDate = checkInDate
           set({ checkInDate })
+        }
+        // If undefined (no param), use stored checkInDate or fetch last session
+        else {
+          if (!get().checkInDate) {
+            await get().fetchLastSessionDate()
+          }
+          targetDate = get().checkInDate || get().lastSessionDate || getToday()
         }
         
         try {
@@ -93,7 +125,7 @@ export const useWorkLogStore = create<WorkLogStore>()(
           const { logs } = await response.json()
           
           if (logs && logs.length > 0) {
-            // Use the first log for the target date
+            // Only use the API response if we have a checkInDate (working session)
             const todayLog = logs[0]
             set({ 
               currentLog: {
@@ -122,9 +154,10 @@ export const useWorkLogStore = create<WorkLogStore>()(
       },
 
       createNewLog: (date?: string) => {
-        const targetDate = date || get().checkInDate || getToday()
+        // If no date provided, use checkInDate, lastSessionDate, or today
+        const targetDate = date || get().checkInDate || get().lastSessionDate || getToday()
         const newLog = createEmptyLog(targetDate)
-        set({ currentLog: newLog, isDirty: true })
+        set({ currentLog: newLog, isDirty: false })
       },
 
       updateField: (field, value) => {
@@ -310,14 +343,18 @@ export const useWorkLogStore = create<WorkLogStore>()(
       
       setDirty: (dirty) => set({ isDirty: dirty }),
       
-      setCheckInDate: (date) => set({ checkInDate: date })
+      setCheckInDate: (date) => {
+        set({ checkInDate: date })
+      }
     }),
     {
       name: 'work-log-storage',
       partialize: (state) => ({
-        currentLog: state.currentLog,
+        // Don't persist currentLog, only checkInDate and lastSessionDate
+        // currentLog should be loaded fresh based on checkInDate or lastSessionDate
         lastSavedAt: state.lastSavedAt,
-        checkInDate: state.checkInDate
+        checkInDate: state.checkInDate,
+        lastSessionDate: state.lastSessionDate
       })
     }
   )

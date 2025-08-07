@@ -21,12 +21,21 @@ export async function GET(request: NextRequest) {
       .limit(1)
       .single()
 
+    // Also get the most recent work session regardless of check_out status
+    const { data: lastSession } = await supabase
+      .from('work_sessions')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('check_in_time', { ascending: false })
+      .limit(1)
+      .single()
+
     if (error) {
-      // No active session found
-      return NextResponse.json({ session: null })
+      // No active session found, but return last session if exists
+      return NextResponse.json({ session: null, lastSession: lastSession || null })
     }
 
-    return NextResponse.json({ session })
+    return NextResponse.json({ session, lastSession: lastSession || session })
 
   } catch (error) {
     console.error('Work session fetch error:', error)

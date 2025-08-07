@@ -21,6 +21,26 @@ export default function StatusControl() {
   useEffect(() => {
     fetchCurrentStatus()
     
+    // Check for existing work session and set checkInDate
+    const initializeCheckInDate = async () => {
+      try {
+        const sessionResponse = await fetch('/api/work-sessions/today')
+        if (sessionResponse.ok) {
+          const { session } = await sessionResponse.json()
+          if (session && session.date && !session.check_out_time) {
+            // Active session found, set the check-in date
+            const { setCheckInDate } = await import('@/lib/stores/work-log-store').then(m => m.useWorkLogStore.getState())
+            setCheckInDate(session.date)
+            console.log('Initialized checkInDate from existing session:', session.date)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to initialize checkInDate:', error)
+      }
+    }
+    
+    initializeCheckInDate()
+    
     // Update time every second for real-time display
     const timer = setInterval(() => {
       setCurrentTime(new Date())
@@ -39,8 +59,8 @@ export default function StatusControl() {
       return
     }
     
-    // If changing from working to home, show work log modal
-    if (currentUserStatus === 'working' && newStatus === 'home') {
+    // If changing from working or break to home, show work log modal
+    if ((currentUserStatus === 'working' || currentUserStatus === 'break') && newStatus === 'home') {
       console.log('Showing work log modal')
       setShowWorkLogModal(true)
       return
@@ -55,16 +75,20 @@ export default function StatusControl() {
         try {
           const today = new Date().toISOString().split('T')[0]
           
-          // Check if there's already a work session today
+          // Check if there's already an ACTIVE work session (not checked out)
           const sessionResponse = await fetch('/api/work-sessions/today')
           let checkInDate = today
           
           if (sessionResponse.ok) {
             const { session } = await sessionResponse.json()
-            if (session && session.date) {
-              // Use the existing session's date (could be from yesterday if working overnight)
+            // Only use existing session date if it's still active (no check_out_time)
+            if (session && session.date && !session.check_out_time) {
+              // Use the existing session's date (working overnight case)
               checkInDate = session.date
-              console.log('Using existing session date:', checkInDate)
+              console.log('Continuing existing session from:', checkInDate)
+            } else {
+              // No active session, use today for new session
+              console.log('Starting new session with today:', today)
             }
           }
           
@@ -112,15 +136,10 @@ export default function StatusControl() {
     }
   }
 
-  const handleWorkLogSkip = async () => {
-    // User chose to skip work log, just update status
-    const success = await updateMyStatus('home')
-    if (success) {
-      setShowWorkLogModal(false)
-      // Clear the check-in date when going home
-      const { setCheckInDate } = await import('@/lib/stores/work-log-store').then(m => m.useWorkLogStore.getState())
-      setCheckInDate(null)
-    }
+  const handleWorkLogSkip = () => {
+    // User chose to cancel, just close modal and maintain current status
+    setShowWorkLogModal(false)
+    // Don't update status, keep the current state (working or break)
   }
 
   const getButtonStyle = (status: UserStatus) => {
@@ -167,13 +186,19 @@ export default function StatusControl() {
   const getTodayWorkTime = () => {
     let totalMinutes = totalDurationMinutes
     
-    // If currently working, add time since last check-in
+    // If currently working (not on break), add time since last status change
     const activeSession = todaySessions.find(session => !session.check_out_time)
-    if (activeSession && activeSession.check_in_time && (currentUserStatus === 'working' || currentUserStatus === 'break')) {
+    if (activeSession && activeSession.check_in_time && currentUserStatus === 'working') {
+      // Only count time if actually working, not on break
       const checkInTime = new Date(activeSession.check_in_time)
-      const additionalMinutes = Math.floor((currentTime.getTime() - checkInTime.getTime()) / (1000 * 60))
-      totalMinutes += additionalMinutes
+      const currentWorkingMinutes = Math.floor((currentTime.getTime() - checkInTime.getTime()) / (1000 * 60))
+      
+      // Note: The server already handles break time subtraction,
+      // but for real-time display we need to calculate it here too
+      // This is a simplified calculation for display purposes
+      totalMinutes = totalDurationMinutes + currentWorkingMinutes
     }
+    // If on break, don't add any additional time
     
     const hours = Math.floor(totalMinutes / 60)
     const minutes = totalMinutes % 60

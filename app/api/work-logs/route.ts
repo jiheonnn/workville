@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createApiClient } from '@/lib/supabase/api-client'
+import { getTodayKorea } from '@/lib/utils/date'
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,16 +25,20 @@ export async function POST(request: NextRequest) {
       feedback = ''
     } = body
 
-    // Use provided date or today
-    const logDate = date || new Date().toISOString().split('T')[0]
+    // Use provided date or today (Korean timezone)
+    const logDate = date || getTodayKorea()
 
-    // Check if log already exists for this date
-    const { data: existingLog } = await supabase
+    // Check if log already exists for this date (get the latest one if multiple exist)
+    const { data: existingLogs } = await supabase
       .from('work_logs')
       .select('id')
       .eq('user_id', user.id)
       .eq('date', logDate)
-      .single()
+      .order('updated_at', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1)
+    
+    const existingLog = existingLogs && existingLogs.length > 0 ? existingLogs[0] : null
 
     if (existingLog) {
       // Update existing log
@@ -116,11 +121,19 @@ export async function GET(request: NextRequest) {
       .from('work_logs')
       .select('*')
       .eq('user_id', user.id)
-      .order('date', { ascending: false })
-      .limit(limit)
 
     if (date) {
-      query = query.eq('date', date)
+      // If specific date is requested, get only one (the latest) for that date
+      query = query
+        .eq('date', date)
+        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1)
+    } else {
+      // Otherwise get recent logs
+      query = query
+        .order('date', { ascending: false })
+        .limit(limit)
     }
 
     const { data, error } = await query

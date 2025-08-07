@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createApiClient } from '@/lib/supabase/api-client'
 import { UserStatus } from '@/lib/types'
+import { getTodayKorea } from '@/lib/utils/date'
+import { sendSlackNotification, sendWorkSummaryNotification } from '@/lib/slack/notifications'
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,25 +27,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }
 
-    // Get current user status
+    // Get current user status and profile for username
     const { data: currentStatus } = await supabase
       .from('user_status')
       .select('status')
       .eq('user_id', user.id)
       .single()
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('id', user.id)
+      .single()
+
     const previousStatus = currentStatus?.status || 'home'
     const now = new Date().toISOString()
 
     // Handle work session tracking
-    if (previousStatus === 'working' && status === 'home') {
-      // User is ending work session (going home only, not break)
+    if ((previousStatus === 'working' || previousStatus === 'break') && status === 'home') {
+      // User is ending work session (going home from working or break)
       // Find the open work session
       console.log('Looking for open session for user:', user.id)
       
       const { data: openSession, error: sessionFindError } = await supabase
         .from('work_sessions')
-        .select('id, check_in_time')
+        .select('id, check_in_time, break_minutes, last_break_start')
         .eq('user_id', user.id)
         .is('check_out_time', null)
         .order('check_in_time', { ascending: false })
@@ -54,17 +62,30 @@ export async function POST(request: NextRequest) {
       console.log('Session find error:', sessionFindError)
 
       if (openSession) {
-        // Calculate duration in minutes - round up for at least 1 minute
+        let totalBreakMinutes = openSession.break_minutes || 0
+        
+        // If currently on break, calculate and add the current break duration
+        if (previousStatus === 'break' && openSession.last_break_start) {
+          const breakStart = new Date(openSession.last_break_start)
+          const breakEnd = new Date(now)
+          const currentBreakDuration = Math.max(1, Math.floor((breakEnd.getTime() - breakStart.getTime()) / (1000 * 60)))
+          totalBreakMinutes += currentBreakDuration
+        }
+        
+        // Calculate total duration and subtract break time
         const checkInTime = new Date(openSession.check_in_time)
         const checkOutTime = new Date(now)
-        const durationMinutes = Math.max(1, Math.floor((checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60)))
+        const totalMinutes = Math.max(1, Math.floor((checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60)))
+        const durationMinutes = Math.max(1, totalMinutes - totalBreakMinutes)
 
-        // Update work session with check-out time and duration
+        // Update work session with check-out time, duration, and break minutes
         const { error: sessionError } = await supabase
           .from('work_sessions')
           .update({
             check_out_time: now,
-            duration_minutes: durationMinutes
+            duration_minutes: durationMinutes,
+            break_minutes: totalBreakMinutes,
+            last_break_start: null
           })
           .eq('id', openSession.id)
 
@@ -105,17 +126,72 @@ export async function POST(request: NextRequest) {
             console.error('Error updating profile - Hint:', profileError.hint)
           }
         }
+
+        // Send work summary notification when checking out
+        if (profile?.username) {
+          await sendWorkSummaryNotification(
+            profile.username,
+            durationMinutes,
+            totalBreakMinutes
+          )
+        }
+      }
+    } else if (previousStatus === 'working' && status === 'break') {
+      // User is taking a break - record break start time
+      const { data: openSession } = await supabase
+        .from('work_sessions')
+        .select('id')
+        .eq('user_id', user.id)
+        .is('check_out_time', null)
+        .order('check_in_time', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (openSession) {
+        await supabase
+          .from('work_sessions')
+          .update({
+            last_break_start: now
+          })
+          .eq('id', openSession.id)
+      }
+    } else if (previousStatus === 'break' && status === 'working') {
+      // User is returning from break - calculate and add break duration
+      const { data: openSession } = await supabase
+        .from('work_sessions')
+        .select('id, last_break_start, break_minutes')
+        .eq('user_id', user.id)
+        .is('check_out_time', null)
+        .order('check_in_time', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (openSession && openSession.last_break_start) {
+        const breakStart = new Date(openSession.last_break_start)
+        const breakEnd = new Date(now)
+        const breakDuration = Math.max(1, Math.floor((breakEnd.getTime() - breakStart.getTime()) / (1000 * 60)))
+        const totalBreakMinutes = (openSession.break_minutes || 0) + breakDuration
+
+        await supabase
+          .from('work_sessions')
+          .update({
+            break_minutes: totalBreakMinutes,
+            last_break_start: null
+          })
+          .eq('id', openSession.id)
       }
     } else if (status === 'working' && previousStatus === 'home') {
       // User is starting work session from home (not from break)
       // Always create a new session when coming from home
-      const today = now.split('T')[0]
+      // Use Korean timezone for date
+      const today = getTodayKorea()
+      
       const { error: sessionError } = await supabase
         .from('work_sessions')
         .insert({
           user_id: user.id,
           check_in_time: now,
-          date: today // YYYY-MM-DD format
+          date: today // YYYY-MM-DD format in Korean timezone
         })
 
       if (sessionError) {
@@ -172,6 +248,16 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
+    // Send Slack notification for status change
+    if (profile?.username && previousStatus !== status) {
+      await sendSlackNotification({
+        username: profile.username,
+        previousStatus: previousStatus as UserStatus,
+        newStatus: status,
+        timestamp: now
+      })
+    }
+
     return NextResponse.json({ 
       success: true, 
       status,
@@ -224,23 +310,36 @@ export async function GET(request: NextRequest) {
     const today = new Date().toISOString().split('T')[0]
     const { data: todaySessions } = await supabase
       .from('work_sessions')
-      .select('check_in_time, check_out_time, duration_minutes')
+      .select('check_in_time, check_out_time, duration_minutes, break_minutes, last_break_start')
       .eq('user_id', user.id)
       .eq('date', today)
       .order('check_in_time', { ascending: true })
 
-    // Calculate total duration for today
+    // Calculate total duration for today (excluding breaks)
     let totalDurationMinutes = 0
     if (todaySessions) {
       todaySessions.forEach(session => {
         if (session.duration_minutes) {
+          // Completed session - duration already excludes breaks
           totalDurationMinutes += session.duration_minutes
         } else if (session.check_in_time && !session.check_out_time) {
-          // Active session - calculate current duration
+          // Active session - calculate current duration excluding breaks
           const checkInTime = new Date(session.check_in_time)
           const currentTime = new Date()
-          const currentDuration = Math.floor((currentTime.getTime() - checkInTime.getTime()) / (1000 * 60))
-          totalDurationMinutes += currentDuration
+          const totalMinutes = Math.floor((currentTime.getTime() - checkInTime.getTime()) / (1000 * 60))
+          
+          let breakMinutes = session.break_minutes || 0
+          
+          // If currently on break, add current break duration
+          if (userStatus?.status === 'break' && session.last_break_start) {
+            const breakStart = new Date(session.last_break_start)
+            const currentBreakDuration = Math.floor((currentTime.getTime() - breakStart.getTime()) / (1000 * 60))
+            breakMinutes += currentBreakDuration
+          }
+          
+          // Subtract break time from total
+          const workMinutes = Math.max(0, totalMinutes - breakMinutes)
+          totalDurationMinutes += workMinutes
         }
       })
     }

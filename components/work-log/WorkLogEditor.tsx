@@ -3,29 +3,48 @@
 import { useEffect } from 'react'
 import { useWorkLogStore } from '@/lib/stores/work-log-store'
 import { useAutoSave } from '@/hooks/useAutoSave'
+import { getTodayKorea } from '@/lib/utils/date'
 import TodoSection from './TodoSection'
 import ROISection from './ROISection'
 import FeedbackSection from './FeedbackSection'
 
 export default function WorkLogEditor() {
-  const { currentLog, isLoading, error, loadTodayLog, clearError } = useWorkLogStore()
+  const { currentLog, isLoading, error, loadTodayLog, clearError, checkInDate, createNewLog } = useWorkLogStore()
   const { isSaving, lastSavedAt, isDirty } = useAutoSave()
 
+  // Initial load
   useEffect(() => {
-    // Check if we have data in local storage first
-    const state = useWorkLogStore.getState()
+    const today = getTodayKorea()
     
-    // If we have a checkInDate, use that; otherwise use today
-    const targetDate = state.checkInDate || new Date().toISOString().split('T')[0]
-    
-    if (state.currentLog && state.currentLog.date === targetDate) {
-      // We have the correct log in local storage, no need to load from DB
-      console.log('Using work log from local storage for date:', targetDate)
+    if (!checkInDate) {
+      // No active work session - show today's log
+      if (currentLog && currentLog.date !== today) {
+        createNewLog(today)
+      } else {
+        loadTodayLog(null)
+      }
     } else {
-      // Load from DB with the check-in date
-      loadTodayLog(state.checkInDate)
+      // Active work session - load checkInDate log
+      loadTodayLog(checkInDate)
     }
   }, [])
+
+  // Watch for checkInDate changes
+  useEffect(() => {
+    const targetDate = checkInDate || getTodayKorea()
+    
+    // Skip if we already have the correct log
+    if (currentLog && currentLog.date === targetDate) {
+      return
+    }
+    
+    // Load the appropriate log
+    if (checkInDate === null) {
+      loadTodayLog(null)
+    } else if (checkInDate) {
+      loadTodayLog(checkInDate)
+    }
+  }, [checkInDate])
 
   if (isLoading && !currentLog) {
     return (
@@ -51,16 +70,24 @@ export default function WorkLogEditor() {
     )
   }
 
+  // 표시할 날짜 결정
+  const displayDate = currentLog?.date || checkInDate || getTodayKorea()
+
   return (
     <div className="space-y-6">
       {/* 저장 상태 표시 */}
       <div className="flex justify-between items-center px-2">
         <h2 className="text-xl font-bold text-gray-800">
-          📝 {new Date(currentLog.date).toLocaleDateString('ko-KR', { 
+          📝 {new Date(displayDate).toLocaleDateString('ko-KR', { 
             year: 'numeric',
             month: 'long', 
             day: 'numeric'
           })} 업무일지
+          {checkInDate && (
+            <span className="text-sm font-normal text-gray-600 ml-2">
+              (출근일 기준)
+            </span>
+          )}
         </h2>
         
         <div className="flex items-center gap-2 text-sm">
