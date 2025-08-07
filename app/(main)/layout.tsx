@@ -105,7 +105,7 @@ export default function MainLayout({
     { href: '/village', label: '마을', icon: '🏘️' },
     { href: '/logs', label: '업무일지', icon: '📝' },
     { href: '/stats', label: '통계', icon: '📊' },
-    { href: '/template', label: '템플릿', icon: '📋' },
+    { href: '/template', label: '업무일지 작성', icon: '✍️' },
   ]
 
   // 로딩 체크 제거 - 바로 렌더링

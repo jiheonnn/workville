@@ -13,32 +13,81 @@ export async function POST(request: NextRequest) {
 
     // Get request body
     const body = await request.json()
-    const { content } = body
+    const { 
+      date,
+      content,
+      todos = [],
+      completed_todos = [],
+      roi_high = '',
+      roi_low = '',
+      tomorrow_priority = '',
+      feedback = ''
+    } = body
 
-    if (!content || typeof content !== 'string') {
-      return NextResponse.json({ error: '업무 일지 내용을 입력해주세요.' }, { status: 400 })
-    }
+    // Use provided date or today
+    const logDate = date || new Date().toISOString().split('T')[0]
 
-    // Save work log - always create a new log
-    const today = new Date().toISOString().split('T')[0]
-    
-    // Create new log
-    const { error: insertError } = await supabase
+    // Check if log already exists for this date
+    const { data: existingLog } = await supabase
       .from('work_logs')
-      .insert({
-        user_id: user.id,
-        date: today,
-        content
-      })
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('date', logDate)
+      .single()
 
-    if (insertError) {
-      console.error('Error creating work log:', insertError)
-      return NextResponse.json({ 
-        error: '업무 일지 생성에 실패했습니다.' 
-      }, { status: 500 })
+    if (existingLog) {
+      // Update existing log
+      const { data, error: updateError } = await supabase
+        .from('work_logs')
+        .update({
+          content,
+          todos,
+          completed_todos,
+          roi_high,
+          roi_low,
+          tomorrow_priority,
+          feedback,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingLog.id)
+        .select()
+        .single()
+
+      if (updateError) {
+        console.error('Error updating work log:', updateError)
+        return NextResponse.json({ 
+          error: '업무 일지 업데이트에 실패했습니다.' 
+        }, { status: 500 })
+      }
+
+      return NextResponse.json({ success: true, id: data.id })
+    } else {
+      // Create new log
+      const { data, error: insertError } = await supabase
+        .from('work_logs')
+        .insert({
+          user_id: user.id,
+          date: logDate,
+          content,
+          todos,
+          completed_todos,
+          roi_high,
+          roi_low,
+          tomorrow_priority,
+          feedback
+        })
+        .select()
+        .single()
+
+      if (insertError) {
+        console.error('Error creating work log:', insertError)
+        return NextResponse.json({ 
+          error: '업무 일지 생성에 실패했습니다.' 
+        }, { status: 500 })
+      }
+
+      return NextResponse.json({ success: true, id: data.id })
     }
-
-    return NextResponse.json({ success: true })
 
   } catch (error) {
     console.error('Work log error:', error)
@@ -49,7 +98,7 @@ export async function POST(request: NextRequest) {
 // GET endpoint to fetch work logs
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const supabase = await createApiClient()
     
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()

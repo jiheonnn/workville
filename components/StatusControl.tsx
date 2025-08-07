@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useVillageStore } from '@/lib/stores/village-store'
 import { UserStatus } from '@/lib/types'
-import WorkLogModal from '@/components/work-log/WorkLogModal'
+import WorkLogConfirmModal from '@/components/work-log/WorkLogConfirmModal'
 
 export default function StatusControl() {
   const [showWorkLogModal, setShowWorkLogModal] = useState(false)
@@ -50,7 +50,51 @@ export default function StatusControl() {
     const success = await updateMyStatus(newStatus)
     console.log('updateMyStatus result:', success)
     if (success) {
-      // You could add a toast notification here
+      // If changing to working status, check for existing session or create new work log
+      if (newStatus === 'working') {
+        try {
+          const today = new Date().toISOString().split('T')[0]
+          
+          // Check if there's already a work session today
+          const sessionResponse = await fetch('/api/work-sessions/today')
+          let checkInDate = today
+          
+          if (sessionResponse.ok) {
+            const { session } = await sessionResponse.json()
+            if (session && session.date) {
+              // Use the existing session's date (could be from yesterday if working overnight)
+              checkInDate = session.date
+              console.log('Using existing session date:', checkInDate)
+            }
+          }
+          
+          // Set the check-in date in the work log store
+          const { setCheckInDate } = await import('@/lib/stores/work-log-store').then(m => m.useWorkLogStore.getState())
+          setCheckInDate(checkInDate)
+          
+          // Create or update work log for the check-in date
+          await fetch('/api/work-logs', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              date: checkInDate,
+              content: '',
+              todos: [],
+              completed_todos: [],
+              roi_high: '',
+              roi_low: '',
+              tomorrow_priority: '',
+              feedback: ''
+            }),
+          })
+          console.log('Work log created/updated for date:', checkInDate)
+        } catch (error) {
+          console.error('Failed to create work log:', error)
+        }
+      }
+      
       console.log(`Status changed to ${newStatus}`)
     } else {
       console.error('Failed to update status')
@@ -62,6 +106,9 @@ export default function StatusControl() {
     const success = await updateMyStatus('home')
     if (success) {
       setShowWorkLogModal(false)
+      // Clear the check-in date when going home
+      const { setCheckInDate } = await import('@/lib/stores/work-log-store').then(m => m.useWorkLogStore.getState())
+      setCheckInDate(null)
     }
   }
 
@@ -70,6 +117,9 @@ export default function StatusControl() {
     const success = await updateMyStatus('home')
     if (success) {
       setShowWorkLogModal(false)
+      // Clear the check-in date when going home
+      const { setCheckInDate } = await import('@/lib/stores/work-log-store').then(m => m.useWorkLogStore.getState())
+      setCheckInDate(null)
     }
   }
 
@@ -203,10 +253,10 @@ export default function StatusControl() {
         </div>
       </div>
       
-      <WorkLogModal
+      <WorkLogConfirmModal
         isOpen={showWorkLogModal}
         onClose={handleWorkLogSkip}
-        onSubmit={handleWorkLogSubmit}
+        onConfirm={handleWorkLogSubmit}
       />
     </div>
   )

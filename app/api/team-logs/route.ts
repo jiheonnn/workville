@@ -26,6 +26,12 @@ export async function GET(request: NextRequest) {
         id,
         date,
         content,
+        todos,
+        completed_todos,
+        roi_high,
+        roi_low,
+        tomorrow_priority,
+        feedback,
         created_at,
         user_id,
         profiles (

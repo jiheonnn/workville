@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { CharacterType } from '@/lib/types'
 import CalendarView from '@/components/work-log/CalendarView'
+import WorkLogDisplay from '@/components/work-log/WorkLogDisplay'
 
 interface Profile {
   id: string
@@ -21,6 +22,12 @@ interface WorkLog {
   id: string
   date: string
   content: string
+  todos?: any[]
+  completed_todos?: any[]
+  roi_high?: string
+  roi_low?: string
+  tomorrow_priority?: string
+  feedback?: string
   created_at: string
   user_id: string
   start_time: string | null
@@ -324,9 +331,15 @@ export default function LogsPage() {
                           </div>
                           
                           <div className="prose prose-sm max-w-none">
-                            <pre className="whitespace-pre-wrap font-sans text-gray-900 bg-gradient-to-r from-gray-50 to-gray-100 p-6 rounded-xl overflow-auto max-h-96 border border-gray-200">
-                              {log.content}
-                            </pre>
+                            <WorkLogDisplay 
+                              content={log.content}
+                              todos={log.todos}
+                              completed_todos={log.completed_todos}
+                              roi_high={log.roi_high}
+                              roi_low={log.roi_low}
+                              tomorrow_priority={log.tomorrow_priority}
+                              feedback={log.feedback}
+                            />
                           </div>
                         </div>
                       </div>
@@ -364,9 +377,15 @@ export default function LogsPage() {
                   </div>
                   
                   <div className="prose prose-sm max-w-none">
-                    <pre className="whitespace-pre-wrap font-sans text-gray-900 bg-gradient-to-r from-gray-50 to-gray-100 p-6 rounded-xl overflow-auto max-h-96 border border-gray-200">
-                      {log.content}
-                    </pre>
+                    <WorkLogDisplay 
+                      content={log.content}
+                      todos={log.todos}
+                      completed_todos={log.completed_todos}
+                      roi_high={log.roi_high}
+                      roi_low={log.roi_low}
+                      tomorrow_priority={log.tomorrow_priority}
+                      feedback={log.feedback}
+                    />
                   </div>
                 </div>
               </div>
