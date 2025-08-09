@@ -20,9 +20,22 @@ export default function VillageMap() {
   const [characters, setCharacters] = useState<CharacterData[]>([])
   const channelRef = useRef<any>(null)
   const { onlineUsers, currentUserStatus } = useVillageStore()
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   
   // Initialize presence tracking
   useRealtimePresence()
+  
+  // Get current user ID on mount
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setCurrentUserId(user.id)
+      }
+    }
+    getCurrentUser()
+  }, [])
 
   // Calculate working and home users
   const workingCount = characters.filter(char => char.status === 'working' || char.status === 'break').length
@@ -184,8 +197,33 @@ export default function VillageMap() {
     }
   }, [])
 
-  // Refetch users when current user status changes
-  // Removed to prevent duplicate fetching - realtime subscription handles updates
+  // Optimistic update for current user's character position
+  useEffect(() => {
+    if (!currentUserId || !currentUserStatus) return
+    
+    setCharacters(prevCharacters => {
+      const updatedCharacters = [...prevCharacters]
+      const currentUserIndex = updatedCharacters.findIndex(char => char.id === currentUserId)
+      
+      if (currentUserIndex !== -1) {
+        // Find the index of this user within their NEW status group
+        const usersWithNewStatus = updatedCharacters.filter(
+          char => char.id === currentUserId || char.status === currentUserStatus
+        ).length - 1
+        
+        const newPosition = getPositionForStatus(currentUserStatus, usersWithNewStatus)
+        
+        // Update current user's status and position immediately
+        updatedCharacters[currentUserIndex] = {
+          ...updatedCharacters[currentUserIndex],
+          status: currentUserStatus,
+          position: newPosition
+        }
+      }
+      
+      return updatedCharacters
+    })
+  }, [currentUserId, currentUserStatus])
 
   // Show loading state while auth is loading - removed this check
   // The component should still work even if auth is loading

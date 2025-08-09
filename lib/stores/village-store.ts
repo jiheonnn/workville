@@ -121,12 +121,22 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
     }
   },
 
-  // Update current user status
+  // Update current user status with Optimistic UI
   updateMyStatus: async (status: UserStatus) => {
     console.log('village-store: updateMyStatus called with:', status)
-    try {
-      set({ isLoading: true, error: null })
+    
+    // Store previous state for rollback
+    const previousStatus = get().currentUserStatus
+    
+    // Optimistic update - immediately update UI
+    set({ 
+      currentUserStatus: status,
+      isLoading: false,  // Don't show loading state for better UX
+      error: null 
+    })
+    console.log('village-store: Optimistic update applied:', status)
 
+    try {
       console.log('village-store: Making API request to /api/status')
       const response = await fetch('/api/status', {
         method: 'POST',
@@ -141,36 +151,40 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
       if (!response.ok) {
         const errorData = await response.json()
         console.error('village-store: API error:', errorData)
-        throw new Error(errorData.error || 'Failed to update status')
+        
+        // Rollback on failure
+        set({ 
+          currentUserStatus: previousStatus,
+          error: errorData.error || 'Failed to update status'
+        })
+        
+        return false
       }
 
       const data = await response.json()
       console.log('village-store: API response data:', data)
       
-      // Update local state
-      set({ 
-        currentUserStatus: status,
-        isLoading: false 
-      })
-      
-      console.log('village-store: Local state updated to:', status)
-
-      // If checking out, trigger a refetch to get updated session data
-      if (data.previousStatus === 'working' && status !== 'working') {
-        console.log('village-store: Triggering refetch after checkout')
+      // If checking out, fetch updated session data after a delay
+      // This runs in background without blocking UI
+      if (data.previousStatus === 'working' && status === 'home') {
+        console.log('village-store: Fetching updated session data in background')
+        // Use longer delay since UI is already updated
         setTimeout(() => {
           get().fetchCurrentStatus()
-        }, 500)
+        }, 1000)
       }
 
       console.log('village-store: Status update successful')
       return true
     } catch (error) {
       console.error('village-store: Error updating status:', error)
+      
+      // Rollback on network error
       set({ 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        isLoading: false 
+        currentUserStatus: previousStatus,
+        error: error instanceof Error ? error.message : 'Unknown error'
       })
+      
       return false
     }
   },

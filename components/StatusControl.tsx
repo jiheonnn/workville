@@ -49,13 +49,13 @@ export default function StatusControl() {
     return () => clearInterval(timer)
   }, [])
 
-  const handleStatusChange = async (newStatus: UserStatus) => {
+  const handleStatusChange = (newStatus: UserStatus) => {
     console.log('handleStatusChange called with:', newStatus)
     console.log('Current status:', currentUserStatus)
-    console.log('isLoading:', isLoading)
     
-    if (isLoading || currentUserStatus === newStatus) {
-      console.log('Returning early - isLoading or same status')
+    // Skip if already same status (but don't check isLoading for better UX)
+    if (currentUserStatus === newStatus) {
+      console.log('Same status, skipping')
       return
     }
     
@@ -67,62 +67,66 @@ export default function StatusControl() {
     }
     
     console.log('Calling updateMyStatus...')
-    const success = await updateMyStatus(newStatus)
-    console.log('updateMyStatus result:', success)
-    if (success) {
-      // If changing to working status, check for existing session or create new work log
-      if (newStatus === 'working') {
-        try {
-          const today = new Date().toISOString().split('T')[0]
-          
-          // Check if there's already an ACTIVE work session (not checked out)
-          const sessionResponse = await fetch('/api/work-sessions/today')
-          let checkInDate = today
-          
-          if (sessionResponse.ok) {
-            const { session } = await sessionResponse.json()
-            // Only use existing session date if it's still active (no check_out_time)
-            if (session && session.date && !session.check_out_time) {
-              // Use the existing session's date (working overnight case)
-              checkInDate = session.date
-              console.log('Continuing existing session from:', checkInDate)
-            } else {
-              // No active session, use today for new session
-              console.log('Starting new session with today:', today)
+    // Fire and forget - don't await
+    updateMyStatus(newStatus).then(success => {
+      console.log('updateMyStatus result:', success)
+      
+      // Handle work log creation in background
+      if (success && newStatus === 'working') {
+        // Run in background without blocking
+        (async () => {
+          try {
+            const today = new Date().toISOString().split('T')[0]
+            
+            // Check if there's already an ACTIVE work session (not checked out)
+            const sessionResponse = await fetch('/api/work-sessions/today')
+            let checkInDate = today
+            
+            if (sessionResponse.ok) {
+              const { session } = await sessionResponse.json()
+              // Only use existing session date if it's still active (no check_out_time)
+              if (session && session.date && !session.check_out_time) {
+                // Use the existing session's date (working overnight case)
+                checkInDate = session.date
+                console.log('Continuing existing session from:', checkInDate)
+              } else {
+                // No active session, use today for new session
+                console.log('Starting new session with today:', today)
+              }
             }
+            
+            // Set the check-in date in the work log store
+            const { setCheckInDate } = await import('@/lib/stores/work-log-store').then(m => m.useWorkLogStore.getState())
+            setCheckInDate(checkInDate)
+            
+            // Create or update work log for the check-in date
+            await fetch('/api/work-logs', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                date: checkInDate,
+                content: '',
+                todos: [],
+                completed_todos: [],
+                roi_high: '',
+                roi_low: '',
+                tomorrow_priority: '',
+                feedback: ''
+              }),
+            })
+            console.log('Work log created/updated for date:', checkInDate)
+          } catch (error) {
+            console.error('Failed to create work log:', error)
           }
-          
-          // Set the check-in date in the work log store
-          const { setCheckInDate } = await import('@/lib/stores/work-log-store').then(m => m.useWorkLogStore.getState())
-          setCheckInDate(checkInDate)
-          
-          // Create or update work log for the check-in date
-          await fetch('/api/work-logs', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              date: checkInDate,
-              content: '',
-              todos: [],
-              completed_todos: [],
-              roi_high: '',
-              roi_low: '',
-              tomorrow_priority: '',
-              feedback: ''
-            }),
-          })
-          console.log('Work log created/updated for date:', checkInDate)
-        } catch (error) {
-          console.error('Failed to create work log:', error)
-        }
+        })()
       }
       
       console.log(`Status changed to ${newStatus}`)
-    } else {
-      console.error('Failed to update status')
-    }
+    }).catch(error => {
+      console.error('Failed to update status:', error)
+    })
   }
 
   const handleWorkLogSubmit = async () => {
@@ -230,7 +234,6 @@ export default function StatusControl() {
         <div className="flex flex-col gap-3 min-w-0">
           <button
             onClick={() => handleStatusChange('working')}
-            disabled={isLoading}
             className={getButtonStyle('working')}
           >
             <span className="text-xl">{getStatusIcon('working')}</span>
@@ -239,7 +242,6 @@ export default function StatusControl() {
           
           <button
             onClick={() => handleStatusChange('break')}
-            disabled={isLoading}
             className={getButtonStyle('break')}
           >
             <span className="text-xl">{getStatusIcon('break')}</span>
@@ -248,7 +250,6 @@ export default function StatusControl() {
           
           <button
             onClick={() => handleStatusChange('home')}
-            disabled={isLoading}
             className={getButtonStyle('home')}
           >
             <span className="text-xl">{getStatusIcon('home')}</span>

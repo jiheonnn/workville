@@ -1,8 +1,9 @@
 'use client'
 
+import { memo } from 'react'
 import { useWorkLogStore } from '@/lib/stores/work-log-store'
 
-export default function FeedbackSection() {
+const FeedbackSection = memo(function FeedbackSection() {
   const { currentLog, updateField } = useWorkLogStore()
 
   if (!currentLog) return null
@@ -25,4 +26,6 @@ export default function FeedbackSection() {
       </p>
     </div>
   )
-}
+})
+
+export default FeedbackSection

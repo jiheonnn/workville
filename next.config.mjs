@@ -6,9 +6,9 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60,
   },
-  experimental: {
-    optimizeCss: true,
-  },
+  // experimental: {
+  //   optimizeCss: true, // Temporarily disabled due to critters module error
+  // },
   compress: true,
   poweredByHeader: false,
 }

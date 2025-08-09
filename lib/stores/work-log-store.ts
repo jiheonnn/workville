@@ -93,61 +93,56 @@ export const useWorkLogStore = create<WorkLogStore>()(
       loadTodayLog: async (checkInDate?: string | null) => {
         set({ isLoading: true, error: null })
         
-        let targetDate: string
-        
-        // If null is explicitly passed, fetch fresh last session date
-        if (checkInDate === null) {
-          // Always fetch fresh last session date when no checkInDate
-          await get().fetchLastSessionDate()
-          targetDate = get().lastSessionDate || getToday()
-          set({ checkInDate: null })
-        }
-        // If a date string is provided, use it
-        else if (checkInDate) {
-          targetDate = checkInDate
-          set({ checkInDate })
-        }
-        // If undefined (no param), use stored checkInDate or fetch last session
-        else {
-          if (!get().checkInDate) {
-            await get().fetchLastSessionDate()
-          }
-          targetDate = get().checkInDate || get().lastSessionDate || getToday()
-        }
-        
         try {
-          const response = await fetch(`/api/work-logs?date=${targetDate}`)
+          // Use the new unified endpoint
+          const targetDate = checkInDate || get().checkInDate || getToday()
+          const response = await fetch(`/api/work-logs/today?date=${targetDate}`)
           
           if (!response.ok) {
             throw new Error('Failed to fetch work log')
           }
 
-          const { logs } = await response.json()
+          const { session, workLog } = await response.json()
           
-          if (logs && logs.length > 0) {
-            // Only use the API response if we have a checkInDate (working session)
-            const todayLog = logs[0]
-            set({ 
-              currentLog: {
-                ...todayLog,
-                todos: todayLog.todos || [],
-                completed_todos: todayLog.completed_todos || [],
-                roi_high: todayLog.roi_high || '',
-                roi_low: todayLog.roi_low || '',
-                tomorrow_priority: todayLog.tomorrow_priority || '',
-                feedback: todayLog.feedback || ''
-              },
-              isDirty: false 
-            })
+          // Update session info
+          if (session) {
+            if (session.date) {
+              set({ checkInDate: session.active ? session.date : null, lastSessionDate: session.date })
+            }
+          }
+          
+          // Update work log
+          if (workLog) {
+            if (workLog.id) {
+              // Existing log from DB
+              set({ 
+                currentLog: {
+                  ...workLog,
+                  todos: workLog.todos || [],
+                  completed_todos: workLog.completed_todos || [],
+                  roi_high: workLog.roi_high || '',
+                  roi_low: workLog.roi_low || '',
+                  tomorrow_priority: workLog.tomorrow_priority || '',
+                  feedback: workLog.feedback || ''
+                },
+                isDirty: false 
+              })
+            } else {
+              // New empty log structure returned from API
+              set({
+                currentLog: workLog,
+                isDirty: false
+              })
+            }
           } else {
-            // Create new log for the target date
+            // Fallback: create new log
             get().createNewLog(targetDate)
           }
         } catch (error) {
           console.error('Error loading work log:', error)
           set({ error: 'Failed to load work log' })
           // Create new log on error
-          get().createNewLog(targetDate)
+          get().createNewLog(checkInDate || getToday())
         } finally {
           set({ isLoading: false })
         }

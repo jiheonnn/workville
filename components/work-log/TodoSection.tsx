@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { useWorkLogStore, TodoItem } from '@/lib/stores/work-log-store'
 
-export default function TodoSection() {
+const TodoSection = memo(function TodoSection() {
   const [newTodoText, setNewTodoText] = useState('')
   const { 
     currentLog, 
@@ -135,4 +135,6 @@ export default function TodoSection() {
       )}
     </div>
   )
-}
+})
+
+export default TodoSection

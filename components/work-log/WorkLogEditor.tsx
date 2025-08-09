@@ -1,50 +1,31 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { useWorkLogStore } from '@/lib/stores/work-log-store'
 import { useAutoSave } from '@/hooks/useAutoSave'
 import { getTodayKorea } from '@/lib/utils/date'
-import TodoSection from './TodoSection'
-import ROISection from './ROISection'
-import FeedbackSection from './FeedbackSection'
+
+// Lazy load heavy components for better initial load performance
+const TodoSection = lazy(() => import('./TodoSection'))
+const ROISection = lazy(() => import('./ROISection'))
+const FeedbackSection = lazy(() => import('./FeedbackSection'))
 
 export default function WorkLogEditor() {
   const { currentLog, isLoading, error, loadTodayLog, clearError, checkInDate, createNewLog } = useWorkLogStore()
   const { isSaving, lastSavedAt, isDirty } = useAutoSave()
 
-  // Initial load
-  useEffect(() => {
-    const today = getTodayKorea()
-    
-    if (!checkInDate) {
-      // No active work session - show today's log
-      if (currentLog && currentLog.date !== today) {
-        createNewLog(today)
-      } else {
-        loadTodayLog(undefined)
-      }
-    } else {
-      // Active work session - load checkInDate log
-      loadTodayLog(checkInDate)
-    }
-  }, [])
-
-  // Watch for checkInDate changes
+  // Optimized single useEffect for initial load and checkInDate changes
   useEffect(() => {
     const targetDate = checkInDate || getTodayKorea()
     
-    // Skip if we already have the correct log
-    if (currentLog && currentLog.date === targetDate) {
+    // Skip if we already have the correct log loaded
+    if (currentLog && currentLog.date === targetDate && !isLoading) {
       return
     }
     
-    // Load the appropriate log
-    if (checkInDate === null) {
-      loadTodayLog(undefined)
-    } else if (checkInDate) {
-      loadTodayLog(checkInDate)
-    }
-  }, [checkInDate])
+    // Load the log for the target date
+    loadTodayLog(targetDate)
+  }, [checkInDate]) // Only re-run when checkInDate changes
 
   if (isLoading && !currentLog) {
     return (
@@ -124,10 +105,24 @@ export default function WorkLogEditor() {
         </div>
       )}
 
-      {/* 각 섹션 */}
-      <TodoSection />
-      <ROISection />
-      <FeedbackSection />
+      {/* 각 섹션 - Lazy loaded with loading states */}
+      <Suspense fallback={
+        <div className="animate-pulse h-48 bg-gradient-to-r from-blue-50 to-blue-100 rounded-2xl" />
+      }>
+        <TodoSection />
+      </Suspense>
+      
+      <Suspense fallback={
+        <div className="animate-pulse h-48 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-2xl" />
+      }>
+        <ROISection />
+      </Suspense>
+      
+      <Suspense fallback={
+        <div className="animate-pulse h-48 bg-gradient-to-r from-purple-50 to-purple-100 rounded-2xl" />
+      }>
+        <FeedbackSection />
+      </Suspense>
 
       {/* 안내 메시지 */}
       <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">

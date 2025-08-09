@@ -62,26 +62,55 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch logs' }, { status: 500 })
     }
 
-    // Fetch work session data for each log
-    const logsWithSessions = logs ? await Promise.all(logs.map(async (log) => {
-      const { data: sessions } = await supabase
+    // Batch fetch work sessions for all logs at once
+    let logsWithSessions = logs || []
+    
+    if (logs && logs.length > 0) {
+      // Extract unique user-date pairs
+      const userDatePairs = logs.map(log => ({
+        user_id: log.user_id,
+        date: log.date
+      }))
+      
+      // Build a query to fetch all sessions at once
+      const userIds = [...new Set(logs.map(log => log.user_id))]
+      const dates = [...new Set(logs.map(log => log.date))]
+      
+      // Fetch all sessions in one query
+      const { data: allSessions } = await supabase
         .from('work_sessions')
-        .select('check_in_time, check_out_time, duration_minutes')
-        .eq('user_id', log.user_id)
-        .eq('date', log.date)
+        .select('user_id, date, check_in_time, check_out_time, duration_minutes')
+        .in('user_id', userIds)
+        .in('date', dates)
         .order('check_in_time', { ascending: true })
-
-      return {
-        ...log,
-        work_sessions: sessions || [],
-        // Keep legacy fields for backward compatibility
-        start_time: sessions && sessions.length > 0 ? sessions[0].check_in_time : null,
-        end_time: sessions && sessions.length > 0 ? 
-          sessions.reduce((latest, current) => {
-            return current.check_out_time > latest ? current.check_out_time : latest;
-          }, sessions[0].check_out_time) : null,
-      }
-    })) : []
+      
+      // Group sessions by user_id and date for quick lookup
+      const sessionMap = new Map()
+      allSessions?.forEach(session => {
+        const key = `${session.user_id}-${session.date}`
+        if (!sessionMap.has(key)) {
+          sessionMap.set(key, [])
+        }
+        sessionMap.get(key).push(session)
+      })
+      
+      // Map sessions to logs
+      logsWithSessions = logs.map(log => {
+        const key = `${log.user_id}-${log.date}`
+        const sessions = sessionMap.get(key) || []
+        
+        return {
+          ...log,
+          work_sessions: sessions,
+          // Keep legacy fields for backward compatibility
+          start_time: sessions.length > 0 ? sessions[0].check_in_time : null,
+          end_time: sessions.length > 0 ? 
+            sessions.reduce((latest: any, current: any) => {
+              return current.check_out_time > latest ? current.check_out_time : latest;
+            }, sessions[0].check_out_time) : null,
+        }
+      })
+    }
 
     // Get list of all users for filtering
     const { data: usersData } = await supabase
