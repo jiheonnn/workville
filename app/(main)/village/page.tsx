@@ -3,12 +3,10 @@
 import dynamic from 'next/dynamic'
 
 const VillageMap = dynamic(() => import('@/components/village/VillageMap'), {
-  ssr: false,
   loading: () => <div className="w-full h-[500px] bg-white rounded-2xl shadow-xl animate-pulse" />
 })
 
 const StatusControl = dynamic(() => import('@/components/StatusControl'), {
-  ssr: false,
   loading: () => <div className="h-32 bg-white rounded-xl shadow-md animate-pulse" />
 })
 
