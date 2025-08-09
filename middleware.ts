@@ -78,8 +78,6 @@ export async function middleware(request: NextRequest) {
   return supabaseResponse
 }
 
-export const runtime = 'edge' // Edge Runtime 사용 - 더 빠른 실행
-
 export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
