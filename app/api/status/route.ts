@@ -3,6 +3,7 @@ import { createApiClient } from '@/lib/supabase/api-client'
 import { UserStatus } from '@/lib/types'
 import { getTodayKorea } from '@/lib/utils/date'
 import { sendSlackNotification, sendWorkSummaryNotification } from '@/lib/slack/notifications'
+import { nanoid } from 'nanoid'
 
 export async function POST(request: NextRequest) {
   try {
@@ -221,6 +222,80 @@ export async function POST(request: NextRequest) {
         console.error('Error creating work session - Details:', sessionError.details)
         console.error('Error creating work session - Hint:', sessionError.hint)
         // Don't return here, continue with status update
+      }
+
+      // 미완료 할 일 이월 로직
+      try {
+        // 1. 오늘 work_log가 이미 있는지 확인
+        const { data: todayWorkLog } = await supabase
+          .from('work_logs')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('date', today)
+          .single()
+
+        // 2. 오늘 work_log가 없으면 전날 미완료 이월
+        if (!todayWorkLog) {
+          // 마지막 work_session의 date 찾기 (직전 근무일)
+          const { data: lastSession } = await supabase
+            .from('work_sessions')
+            .select('date')
+            .eq('user_id', user.id)
+            .neq('date', today)
+            .order('date', { ascending: false })
+            .limit(1)
+            .single()
+
+          if (lastSession?.date) {
+            // 직전 근무일의 work_log 조회
+            const { data: previousWorkLog } = await supabase
+              .from('work_logs')
+              .select('todos')
+              .eq('user_id', user.id)
+              .eq('date', lastSession.date)
+              .single()
+
+            if (previousWorkLog?.todos && Array.isArray(previousWorkLog.todos)) {
+              // 미완료 항목만 필터링하고 태그 추가
+              const uncompletedTodos = previousWorkLog.todos
+                .filter((todo: any) => !todo.completed)
+                .map((todo: any) => ({
+                  ...todo,
+                  id: nanoid(), // 새 ID 생성
+                  text: todo.text.startsWith('[어제 못한일]') 
+                    ? todo.text 
+                    : `[어제 못한일] ${todo.text}`,
+                  completed: false
+                }))
+
+              if (uncompletedTodos.length > 0) {
+                // 이월된 todos와 함께 새 work_log 생성
+                const { error: createLogError } = await supabase
+                  .from('work_logs')
+                  .insert({
+                    user_id: user.id,
+                    date: today,
+                    todos: uncompletedTodos,
+                    completed_todos: [],
+                    roi_high: '',
+                    roi_low: '',
+                    tomorrow_priority: '',
+                    feedback: '',
+                    content: `## ✈️ 오늘 할 일\n${uncompletedTodos.map((t: any) => `- [ ] ${t.text}`).join('\n')}\n\n## ✅ 완료한 일\n\n## 💡 ROI 자가 진단\n\n1. 오늘 한 일 중 가장 **ROI 높은 일**은?\n→ \n\n2. 오늘 한 일 중 가장 **ROI 낮은 일**은?\n→ \n\n3. 내일 가장 먼저 할 일 (ROI 기준)\n→ \n\n## ✅ 자가 피드백\n`
+                  })
+
+                if (createLogError) {
+                  console.error('Error creating work log with carried over todos:', createLogError)
+                } else {
+                  console.log(`Successfully carried over ${uncompletedTodos.length} uncompleted todos from ${lastSession.date}`)
+                }
+              }
+            }
+          }
+        }
+      } catch (carryOverError) {
+        console.error('Error in carry over logic:', carryOverError)
+        // 이월 실패해도 출근 체크인은 계속 진행
       }
     }
     // If coming from break, don't create a new session (keep the existing one)

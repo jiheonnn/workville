@@ -41,34 +41,53 @@ const TodoSection = memo(function TodoSection() {
         </h3>
         
         <div className="space-y-2">
-          {currentLog.todos.map((todo) => (
-            <div
-              key={todo.id}
-              className="flex items-start gap-3 p-3 bg-white rounded-lg hover:shadow-sm transition-all"
-            >
-              <input
-                type="checkbox"
-                checked={todo.completed}
-                onChange={() => toggleTodo(todo.id)}
-                className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
-              />
-              <input
-                type="text"
-                value={todo.text}
-                onChange={(e) => updateTodoText(todo.id, e.target.value)}
-                className="flex-1 bg-transparent outline-none text-gray-700"
-                placeholder="할 일을 입력하세요"
-              />
-              <button
-                onClick={() => deleteTodo(todo.id)}
-                className="text-gray-400 hover:text-red-500 transition-colors"
+          {currentLog.todos.map((todo) => {
+            const isCarriedOver = todo.text.startsWith('[어제 못한일]')
+            const displayText = isCarriedOver 
+              ? todo.text.replace('[어제 못한일] ', '') 
+              : todo.text
+            
+            return (
+              <div
+                key={todo.id}
+                className="flex items-start gap-3 p-3 bg-white rounded-lg hover:shadow-sm transition-all"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          ))}
+                <input
+                  type="checkbox"
+                  checked={todo.completed}
+                  onChange={() => toggleTodo(todo.id)}
+                  className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
+                />
+                <div className="flex-1 flex items-start gap-2">
+                  {isCarriedOver && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 whitespace-nowrap">
+                      어제 못한일
+                    </span>
+                  )}
+                  <input
+                    type="text"
+                    value={displayText}
+                    onChange={(e) => {
+                      const newText = isCarriedOver 
+                        ? `[어제 못한일] ${e.target.value}`
+                        : e.target.value
+                      updateTodoText(todo.id, newText)
+                    }}
+                    className="flex-1 bg-transparent outline-none text-gray-700"
+                    placeholder="할 일을 입력하세요"
+                  />
+                </div>
+                <button
+                  onClick={() => deleteTodo(todo.id)}
+                  className="text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )
+          })}
           
           {/* 새 TO-DO 추가 */}
           <div className="flex items-center gap-3 p-3 bg-white/70 rounded-lg border-2 border-dashed border-blue-200">
