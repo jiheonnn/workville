@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  // 화이트리스트: 승인된 이메일만 접근 가능
+  const ALLOWED_EMAILS = process.env.ALLOWED_EMAILS?.split(',') || ['petebaek07@gmail.com']
+  
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -16,7 +19,7 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({
             request,
           })
@@ -36,6 +39,17 @@ export async function middleware(request: NextRequest) {
   console.log('Middleware - Path:', request.nextUrl.pathname)
   console.log('Middleware - User:', user?.id)
   console.log('Middleware - Auth Error:', authError)
+  
+  // 화이트리스트 체크: 로그인한 사용자가 승인된 이메일인지 확인
+  if (user && !ALLOWED_EMAILS.includes(user.email || '')) {
+    console.log('Access denied for email:', user.email)
+    return new NextResponse('접근 권한이 없습니다. 승인된 사용자만 접근 가능합니다.', { 
+      status: 403,
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8'
+      }
+    })
+  }
 
   // 보호된 라우트 체크
   if (
