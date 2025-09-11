@@ -43,8 +43,8 @@ export async function middleware(request: NextRequest) {
   // 화이트리스트 체크: 로그인한 사용자가 승인된 이메일인지 확인
   if (user && !ALLOWED_EMAILS.includes(user.email || '')) {
     console.log('Access denied for email:', user.email)
-    return new NextResponse('접근 권한이 없습니다. 승인된 사용자만 접근 가능합니다.', { 
-      status: 403,
+    return new NextResponse('Service Temporarily Unavailable. Please try again later.', { 
+      status: 503,
       headers: {
         'Content-Type': 'text/plain; charset=utf-8'
       }
