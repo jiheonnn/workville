@@ -51,6 +51,7 @@ interface WorkLogStore {
   updateTodoText: (id: string, text: string) => void
   saveToLocalStorage: () => void
   saveToDB: () => Promise<void>
+  flushPendingSave: () => Promise<void>
   clearError: () => void
   setDirty: (dirty: boolean) => void
   setCheckInDate: (date: string) => void
@@ -417,6 +418,20 @@ export const useWorkLogStore = create<WorkLogStore>()(
             set({ isSaving: false })
           }
         }
+      },
+
+      flushPendingSave: async () => {
+        const { currentLog, isDirty, isSaving, hasConflict } = get()
+
+        // 이유:
+        // village 화면 안에서 업무일지를 쓰다가 같은 앱 내 다른 탭으로 빠르게 이동하면
+        // interval 저장 주기를 기다리기 전에 컴포넌트가 언마운트될 수 있습니다.
+        // 이 시점에는 진행 중 저장/충돌 상태를 존중하면서 dirty draft만 한 번 즉시 저장합니다.
+        if (!currentLog || !isDirty || isSaving || hasConflict) {
+          return
+        }
+
+        await get().saveToDB()
       },
 
       clearError: () => set({ error: null }),

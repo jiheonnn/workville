@@ -56,21 +56,16 @@ export default function WorkLogEditor() {
   return (
     <div className="space-y-6">
       {/* 저장 상태 표시 */}
-      <div className="flex justify-between items-center px-2">
-        <h2 className="text-xl font-bold text-gray-800">
+      <div className="flex flex-col gap-3 px-2 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-xl font-bold text-gray-800 leading-snug">
           📝 {new Date(displayDate).toLocaleDateString('ko-KR', { 
             year: 'numeric',
             month: 'long', 
             day: 'numeric'
           })} 업무일지
-          {checkInDate && (
-            <span className="text-sm font-normal text-gray-600 ml-2">
-              (출근일 기준)
-            </span>
-          )}
         </h2>
         
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
           {hasConflict ? (
             <span className="text-red-600">• 충돌 해결 필요</span>
           ) : isSaving ? (
@@ -81,12 +76,7 @@ export default function WorkLogEditor() {
           ) : isDirty ? (
             <span className="text-yellow-600">• 저장 대기 중</span>
           ) : lastSavedAt ? (
-            <span className="text-green-600">
-              ✓ {new Date(lastSavedAt).toLocaleTimeString('ko-KR', {
-                hour: '2-digit',
-                minute: '2-digit'
-              })} 저장됨
-            </span>
+            <span className="text-green-600">✓ 저장됨</span>
           ) : null}
         </div>
       </div>

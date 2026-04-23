@@ -41,7 +41,7 @@ export default function PendingInvitesPanel({
                 onClick={() => void onAccept(invite.id)}
                 className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
               >
-                초대 수락
+                수락
               </button>
             </div>
           ))

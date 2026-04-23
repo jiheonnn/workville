@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useWorkLogStore } from '@/lib/stores/work-log-store'
 import { debounce } from '@/lib/utils'
 
@@ -11,7 +11,21 @@ export function useAutoSave() {
     lastSavedAt,
     saveToDB,
     saveToLocalStorage,
+    flushPendingSave,
   } = useWorkLogStore()
+  const latestStateRef = useRef({
+    isDirty,
+    isSaving,
+    hasConflict,
+  })
+
+  useEffect(() => {
+    latestStateRef.current = {
+      isDirty,
+      isSaving,
+      hasConflict,
+    }
+  }, [hasConflict, isDirty, isSaving])
 
   // Debounced save to localStorage (1 second)
   const debouncedLocalSave = useMemo(
@@ -69,6 +83,19 @@ export function useAutoSave() {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [hasConflict, isDirty, isSaving, saveToDB])
+
+  useEffect(() => {
+    return () => {
+      const latestState = latestStateRef.current
+
+      // 이유:
+      // village 안에서 다른 탭으로 이동하면 beforeunload 이벤트가 발생하지 않으므로,
+      // 언마운트 직전에 dirty draft를 한 번 더 flush해야 5초 주기 저장 공백을 줄일 수 있습니다.
+      if (latestState.isDirty && !latestState.isSaving && !latestState.hasConflict) {
+        void flushPendingSave()
+      }
+    }
+  }, [flushPendingSave])
 
   return {
     isSaving,

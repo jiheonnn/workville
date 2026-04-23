@@ -1,28 +1,57 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import WorkLogConfirmModal from '@/components/work-log/WorkLogConfirmModal'
+import VillageStatusSegmentedControl from '@/components/village/VillageStatusSegmentedControl'
+import VillageWorkLogPanel from '@/components/village/VillageWorkLogPanel'
+import { useVillageStatusController } from '@/hooks/useVillageStatusController'
 
 const VillageMap = dynamic(() => import('@/components/village/VillageMap'), {
   loading: () => <div className="w-full h-[500px] bg-white rounded-2xl shadow-xl animate-pulse" />
 })
 
-const StatusControl = dynamic(() => import('@/components/StatusControl'), {
-  loading: () => <div className="h-32 bg-white rounded-xl shadow-md animate-pulse" />
-})
-
 export default function VillagePage() {
+  const {
+    currentUserStatus,
+    error,
+    latestCheckInTime,
+    showWorkLogModal,
+    statusSummary,
+    handleStatusChange,
+    handleWorkLogSubmit,
+    handleWorkLogSkip,
+  } = useVillageStatusController()
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-slate-50 to-gray-100">
       <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 xl:grid-cols-7 gap-6">
-          <div className="xl:col-span-5">
-            <VillageMap />
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
+          <div className="xl:col-span-3">
+            <VillageMap
+              footer={
+                <VillageStatusSegmentedControl
+                  currentStatus={currentUserStatus}
+                  onStatusChange={handleStatusChange}
+                />
+              }
+            />
           </div>
           <div className="xl:col-span-2">
-            <StatusControl />
+            <VillageWorkLogPanel
+              error={error}
+              summaryLabel={statusSummary.label}
+              summaryTotalMinutes={statusSummary.totalMinutes}
+              latestCheckInTime={latestCheckInTime}
+            />
           </div>
         </div>
       </div>
+
+      <WorkLogConfirmModal
+        isOpen={showWorkLogModal}
+        onClose={handleWorkLogSkip}
+        onConfirm={handleWorkLogSubmit}
+      />
     </div>
   )
 }

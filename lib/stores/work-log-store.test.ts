@@ -170,3 +170,67 @@ describe('useWorkLogStore team transition reset', () => {
     expect(state.activeSaveRequestId).toBe(0)
   })
 })
+
+describe('useWorkLogStore flushPendingSave', () => {
+  beforeEach(() => {
+    resetStore()
+    vi.restoreAllMocks()
+  })
+
+  it('dirty 상태에서는 즉시 저장을 시도합니다', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        createMockResponse({
+          log: {
+            id: 'log-1',
+            version: 1,
+            updated_at: '2026-04-23T01:00:00.000Z',
+          },
+        })
+      )
+    )
+
+    useWorkLogStore.setState({
+      currentLog: {
+        date: '2026-04-23',
+        todos: [{ id: 'todo-1', text: '즉시 저장', completed: false, order: 0 }],
+        completed_todos: [],
+        roi_high: '',
+        roi_low: '',
+        tomorrow_priority: '',
+        feedback: '',
+      },
+      isDirty: true,
+    })
+
+    await useWorkLogStore.getState().flushPendingSave()
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('충돌 상태에서는 강제로 저장하지 않고 로컬 draft를 유지합니다', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+
+    useWorkLogStore.setState({
+      currentLog: {
+        id: 'log-1',
+        date: '2026-04-23',
+        version: 2,
+        todos: [{ id: 'todo-1', text: '충돌 draft', completed: false, order: 0 }],
+        completed_todos: [],
+        roi_high: '',
+        roi_low: '',
+        tomorrow_priority: '',
+        feedback: '',
+      },
+      isDirty: true,
+      hasConflict: true,
+    })
+
+    await useWorkLogStore.getState().flushPendingSave()
+
+    expect(fetch).not.toHaveBeenCalled()
+    expect(useWorkLogStore.getState().currentLog?.todos[0].text).toBe('충돌 draft')
+  })
+})
