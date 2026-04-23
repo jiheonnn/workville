@@ -9,10 +9,10 @@ Workville is a team visualization tool that displays team members' work status a
 ## Development Commands
 
 ```bash
-npm run dev      # Start development server (http://localhost:3000)
-npm run build    # Build for production
-npm run start    # Start production server
-npm run lint     # Run ESLint
+yarn dev         # Start development server (http://localhost:3000)
+yarn build       # Build for production
+yarn start       # Start production server
+yarn lint        # Run ESLint
 ```
 
 ## Architecture & Key Patterns

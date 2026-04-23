@@ -13,9 +13,19 @@ cp .env.local.example .env.local
 
 2. Supabase 프로젝트를 생성하고 환경 변수를 설정합니다:
 ```
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SLACK_WEBHOOK_URL=
 ```
+
+3. Vercel에 배포할 경우 같은 키 이름으로 환경 변수를 등록합니다:
+```bash
+npx vercel env add NEXT_PUBLIC_SUPABASE_URL
+npx vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
+npx vercel env add SLACK_WEBHOOK_URL
+```
+
+`SLACK_WEBHOOK_URL`은 선택값이라 비워둘 수 있습니다.
 
 ### 2. 데이터베이스 설정
 
@@ -25,10 +35,10 @@ Supabase SQL Editor에서 `supabase/migrations/001_initial_schema.sql` 파일의
 
 ```bash
 # 의존성 설치
-npm install
+yarn install
 
 # 개발 서버 실행
-npm run dev
+yarn dev
 ```
 
 http://localhost:3000 에서 애플리케이션을 확인할 수 있습니다.

@@ -1,9 +1,3 @@
-[mcp_servers.firebase]
-enabled = false
-
-[mcp_servers.dart]
-enabled = false
-
 [mcp_servers.supabase]
 url = "https://mcp.supabase.com/mcp"
 

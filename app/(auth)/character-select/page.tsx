@@ -37,8 +37,13 @@ export default function CharacterSelectPage() {
       if (error) {
         console.error('Error fetching taken characters:', error)
       } else {
-        const taken = data?.map(profile => profile.character_type).filter(Boolean) || []
-        setTakenCharacters(taken as CharacterType[])
+        // 이유: Supabase 응답 타입이 이 구간에서 `never`로 좁혀져 빌드가 깨져서,
+        // 실제 응답 shape를 명시해 캐릭터 타입만 안전하게 추출합니다.
+        const profiles = (data ?? []) as Array<{ character_type: CharacterType | null }>
+        const taken = profiles
+          .map((profile) => profile.character_type)
+          .filter((character): character is CharacterType => character !== null)
+        setTakenCharacters(taken)
       }
     } catch (err) {
       console.error('Error:', err)
