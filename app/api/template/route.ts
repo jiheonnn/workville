@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
+
+import { requireActiveTeam } from '@/lib/team/server-context'
 import { createApiClient } from '@/lib/supabase/api-client'
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createApiClient()
-    
+    const { activeTeamId } = await requireActiveTeam(supabase)
+
     const { data, error } = await supabase
       .from('work_log_template')
       .select('*')
+      .eq('team_id', activeTeamId)
       .single()
 
     if (error) {
@@ -16,12 +20,21 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ template: data })
-
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'UNAUTHORIZED') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      if (error.message === 'ACTIVE_TEAM_REQUIRED') {
+        return NextResponse.json({ error: '활성 팀이 필요합니다.' }, { status: 409 })
+      }
+    }
+
     console.error('API Template GET error:', error)
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: error instanceof Error ? error.message : 'Unknown error',
     }, { status: 500 })
   }
 }
@@ -29,14 +42,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const supabase = await createApiClient()
-    
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
+    const { userId, activeTeamId } = await requireActiveTeam(supabase)
     const body = await request.json()
     const { content } = body
 
@@ -44,10 +50,10 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Content is required' }, { status: 400 })
     }
 
-    // First get the template ID
     const { data: existingTemplate } = await supabase
       .from('work_log_template')
       .select('id')
+      .eq('team_id', activeTeamId)
       .single()
 
     if (!existingTemplate) {
@@ -56,10 +62,10 @@ export async function PUT(request: NextRequest) {
 
     const { data, error } = await supabase
       .from('work_log_template')
-      .update({ 
+      .update({
         content,
-        updated_by: user.id,
-        updated_at: new Date().toISOString()
+        updated_by: userId,
+        updated_at: new Date().toISOString(),
       })
       .eq('id', existingTemplate.id)
       .select()
@@ -71,12 +77,21 @@ export async function PUT(request: NextRequest) {
     }
 
     return NextResponse.json({ template: data })
-
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'UNAUTHORIZED') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      if (error.message === 'ACTIVE_TEAM_REQUIRED') {
+        return NextResponse.json({ error: '활성 팀이 필요합니다.' }, { status: 409 })
+      }
+    }
+
     console.error('API Template PUT error:', error)
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: error instanceof Error ? error.message : 'Unknown error',
     }, { status: 500 })
   }
 }

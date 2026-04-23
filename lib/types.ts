@@ -1,5 +1,11 @@
 export type {
   CharacterType,
+  Team,
+  TeamInvite,
+  TeamInviteStatus,
+  TeamMember,
+  TeamMembershipStatus,
+  TeamRole,
   Profile,
   UserStatus,
   UserStatusRecord,

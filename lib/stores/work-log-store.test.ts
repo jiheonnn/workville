@@ -118,3 +118,55 @@ describe('useWorkLogStore saveToDB', () => {
     expect(state.hasConflict).toBe(true)
   })
 })
+
+describe('useWorkLogStore team transition reset', () => {
+  beforeEach(() => {
+    resetStore()
+    vi.restoreAllMocks()
+  })
+
+  it('팀이 바뀌면 업무일지 관련 로컬 상태를 초기화합니다', () => {
+    const removeItem = vi.fn()
+    vi.stubGlobal('window', {
+      localStorage: {
+        removeItem,
+      },
+    } as unknown as Window & typeof globalThis)
+
+    useWorkLogStore.setState({
+      currentLog: {
+        id: 'log-1',
+        date: '2026-04-23',
+        version: 2,
+        todos: [{ id: 'todo-1', text: '내 로컬 draft', completed: false, order: 0 }],
+        completed_todos: [],
+        roi_high: '',
+        roi_low: '',
+        tomorrow_priority: '',
+        feedback: '',
+      },
+      isDirty: true,
+      hasConflict: true,
+      error: 'conflict',
+      checkInDate: '2026-04-23',
+      lastSessionDate: '2026-04-23',
+      lastSavedAt: new Date('2026-04-23T01:00:00.000Z'),
+      localRevision: 3,
+      activeSaveRequestId: 9,
+    })
+
+    useWorkLogStore.getState().resetForTeamTransition()
+
+    const state = useWorkLogStore.getState()
+    expect(removeItem).toHaveBeenCalledWith('work-log-storage')
+    expect(state.currentLog).toBeNull()
+    expect(state.isDirty).toBe(false)
+    expect(state.hasConflict).toBe(false)
+    expect(state.error).toBeNull()
+    expect(state.checkInDate).toBeNull()
+    expect(state.lastSessionDate).toBeNull()
+    expect(state.lastSavedAt).toBeNull()
+    expect(state.localRevision).toBe(0)
+    expect(state.activeSaveRequestId).toBe(0)
+  })
+})

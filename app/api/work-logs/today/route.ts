@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+
+import { requireActiveTeam } from '@/lib/team/server-context'
 import { createApiClient } from '@/lib/supabase/api-client'
 import { getTodayKorea } from '@/lib/utils/date'
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createApiClient()
-    
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const { userId, activeTeamId } = await requireActiveTeam(supabase)
 
     // Get query params
     const { searchParams } = new URL(request.url)
@@ -20,7 +17,8 @@ export async function GET(request: NextRequest) {
       supabase
         .from('work_sessions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('team_id', activeTeamId)
+        .eq('user_id', userId)
         .is('check_out_time', null)
         .order('check_in_time', { ascending: false })
         .limit(1)
@@ -28,7 +26,8 @@ export async function GET(request: NextRequest) {
       supabase
         .from('work_sessions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('team_id', activeTeamId)
+        .eq('user_id', userId)
         .order('check_in_time', { ascending: false })
         .limit(1)
         .single(),
@@ -44,7 +43,8 @@ export async function GET(request: NextRequest) {
     const { data: logs } = await supabase
       .from('work_logs')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('team_id', activeTeamId)
+      .eq('user_id', userId)
       .eq('date', targetDate)
       .order('updated_at', { ascending: false })
       .order('created_at', { ascending: false })
@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
     // If no work log exists, return empty structure
     if (!workLog) {
       workLog = {
+        team_id: activeTeamId,
         date: targetDate,
         todos: [],
         completed_todos: [],
@@ -76,6 +77,16 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'UNAUTHORIZED') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      if (error.message === 'ACTIVE_TEAM_REQUIRED') {
+        return NextResponse.json({ error: '활성 팀이 필요합니다.' }, { status: 409 })
+      }
+    }
+
     console.error('Work log today fetch error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

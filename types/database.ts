@@ -18,6 +18,21 @@ export type Database = {
         Insert: Partial<Profile>
         Update: Partial<Profile>
       }
+      teams: {
+        Row: Team
+        Insert: Partial<Team>
+        Update: Partial<Team>
+      }
+      team_members: {
+        Row: TeamMember
+        Insert: Partial<TeamMember>
+        Update: Partial<TeamMember>
+      }
+      team_invites: {
+        Row: TeamInvite
+        Insert: Partial<TeamInvite>
+        Update: Partial<TeamInvite>
+      }
       work_sessions: {
         Row: WorkSession
         Insert: Partial<WorkSession>
@@ -49,11 +64,45 @@ export interface Profile {
   character_type: CharacterType | null;
   level: number;
   total_work_hours: number;
+  active_team_id: string | null;
   created_at: string;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  created_by: string;
+  created_at: string;
+}
+
+export type TeamRole = 'owner' | 'member';
+export type TeamMembershipStatus = 'active' | 'removed';
+
+export interface TeamMember {
+  id: string;
+  team_id: string;
+  user_id: string;
+  role: TeamRole;
+  status: TeamMembershipStatus;
+  joined_at: string;
+  created_at: string;
+}
+
+export type TeamInviteStatus = 'pending' | 'accepted' | 'cancelled';
+
+export interface TeamInvite {
+  id: string;
+  team_id: string;
+  email: string;
+  invited_by: string;
+  status: TeamInviteStatus;
+  created_at: string;
+  accepted_at: string | null;
 }
 
 export interface WorkSession {
   id: string;
+  team_id: string;
   user_id: string;
   check_in_time: string;
   check_out_time: string | null;
@@ -66,6 +115,7 @@ export interface WorkSession {
 
 export interface UserStatusRecord {
   id: string;
+  team_id: string;
   user_id: string;
   status: UserStatus;
   last_updated: string;
@@ -73,6 +123,7 @@ export interface UserStatusRecord {
 
 export interface WorkLog {
   id: string;
+  team_id: string;
   user_id: string;
   date: string;
   content: string;
@@ -89,6 +140,7 @@ export interface WorkLog {
 
 export interface WorkLogTemplate {
   id: string;
+  team_id: string;
   content: string;
   updated_at: string;
   updated_by: string | null;

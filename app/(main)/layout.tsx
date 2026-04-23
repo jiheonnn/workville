@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
+import TeamSwitcher from '@/components/team/TeamSwitcher'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { getCharacterImagePath } from '@/lib/character-utils'
 
@@ -143,9 +144,10 @@ export default function MainLayout({
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              <TeamSwitcher />
               {user && (
                 <>
-                  <div className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-100 to-green-100">
+                  <div className="flex shrink-0 items-center space-x-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-100 to-green-100">
                     <div className="w-8 h-8 rounded-full overflow-hidden relative">
                       <Image 
                         src={getCharacterImagePath(user.character_type, 'normal')}
@@ -181,9 +183,11 @@ export default function MainLayout({
           <h1 className="text-xl font-black bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
             Workville
           </h1>
-          {user && (
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-100 to-green-100">
+          <div className="flex items-center space-x-3">
+            <TeamSwitcher />
+            {user && (
+              <>
+              <div className="flex shrink-0 items-center space-x-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-100 to-green-100">
                 <div className="w-6 h-6 rounded-full overflow-hidden relative">
                   <Image 
                     src={getCharacterImagePath(user.character_type, 'normal')}
@@ -206,8 +210,9 @@ export default function MainLayout({
               >
                 로그아웃
               </button>
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </div>
       </div>
 

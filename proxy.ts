@@ -6,6 +6,8 @@ export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   })
+  const pathname = request.nextUrl.pathname
+  const isApiRoute = pathname.startsWith('/api/')
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,41 +35,55 @@ export async function proxy(request: NextRequest) {
     error: authError
   } = await supabase.auth.getUser()
 
-  console.log('Proxy - Path:', request.nextUrl.pathname)
+  console.log('Proxy - Path:', pathname)
   console.log('Proxy - User:', user?.id)
   console.log('Proxy - Auth Error:', authError)
 
   if (
     !user &&
-    (request.nextUrl.pathname.startsWith('/village') ||
-      request.nextUrl.pathname.startsWith('/logs') ||
-      request.nextUrl.pathname.startsWith('/stats'))
+    (pathname.startsWith('/village') ||
+      pathname.startsWith('/team') ||
+      pathname.startsWith('/logs') ||
+      pathname.startsWith('/stats') ||
+      pathname.startsWith('/template'))
   ) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  if (
-    user &&
-    (request.nextUrl.pathname === '/login' ||
-      request.nextUrl.pathname === '/signup')
-  ) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/village'
-    return NextResponse.redirect(url)
-  }
-
-  if (user && request.nextUrl.pathname !== '/character-select') {
+  if (user && pathname !== '/character-select') {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('character_type')
+      .select('character_type, active_team_id')
       .eq('id', user.id)
       .single()
 
     if (!profile || !profile.character_type) {
       const url = request.nextUrl.clone()
       url.pathname = '/character-select'
+      return NextResponse.redirect(url)
+    }
+
+    if (
+      pathname === '/login' ||
+      pathname === '/signup'
+    ) {
+      const url = request.nextUrl.clone()
+      url.pathname = profile.active_team_id ? '/village' : '/team'
+      return NextResponse.redirect(url)
+    }
+
+    if (isApiRoute) {
+      return supabaseResponse
+    }
+
+    if (
+      !profile.active_team_id &&
+      pathname !== '/team'
+    ) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/team'
       return NextResponse.redirect(url)
     }
   }

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+
+import { requireActiveTeam } from '@/lib/team/server-context'
 import { createApiClient } from '@/lib/supabase/api-client'
 import { getTodayKorea } from '@/lib/utils/date'
 import {
@@ -10,12 +12,14 @@ const CONFLICT_STATUS = 409
 
 const fetchLatestWorkLogByDate = async (
   supabase: Awaited<ReturnType<typeof createApiClient>>,
+  teamId: string,
   userId: string,
   logDate: string
 ) => {
   const { data, error } = await supabase
     .from('work_logs')
     .select('*')
+    .eq('team_id', teamId)
     .eq('user_id', userId)
     .eq('date', logDate)
     .order('updated_at', { ascending: false })
@@ -32,12 +36,7 @@ const fetchLatestWorkLogByDate = async (
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createApiClient()
-    
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
-    }
+    const { userId, activeTeamId } = await requireActiveTeam(supabase)
 
     // Get request body
     const body = await request.json()
@@ -48,7 +47,12 @@ export async function POST(request: NextRequest) {
     const normalizedInput = normalizeWorkLogSaveInput(body)
     const now = new Date().toISOString()
 
-    const existingLog = await fetchLatestWorkLogByDate(supabase, user.id, logDate)
+    const existingLog = await fetchLatestWorkLogByDate(
+      supabase,
+      activeTeamId,
+      userId,
+      logDate
+    )
 
     if (existingLog) {
       if (typeof baseVersion !== 'number') {
@@ -84,7 +88,12 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (updateError) {
-        const latestLog = await fetchLatestWorkLogByDate(supabase, user.id, logDate)
+        const latestLog = await fetchLatestWorkLogByDate(
+          supabase,
+          activeTeamId,
+          userId,
+          logDate
+        )
 
         if (latestLog && latestLog.version !== baseVersion) {
           return NextResponse.json(
@@ -109,7 +118,8 @@ export async function POST(request: NextRequest) {
     const { data, error: insertError } = await supabase
       .from('work_logs')
       .insert({
-        user_id: user.id,
+        team_id: activeTeamId,
+        user_id: userId,
         date: logDate,
         version: 1,
         updated_at: now,
@@ -120,7 +130,12 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       if (insertError.code === '23505') {
-        const latestLog = await fetchLatestWorkLogByDate(supabase, user.id, logDate)
+        const latestLog = await fetchLatestWorkLogByDate(
+          supabase,
+          activeTeamId,
+          userId,
+          logDate
+        )
 
         if (latestLog) {
           const latestPayload = normalizeWorkLogSaveInput(latestLog)
@@ -149,6 +164,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, log: data })
 
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'UNAUTHORIZED') {
+        return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
+      }
+
+      if (error.message === 'ACTIVE_TEAM_REQUIRED') {
+        return NextResponse.json({ error: '활성 팀이 필요합니다.' }, { status: 409 })
+      }
+    }
+
     console.error('Work log error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
@@ -158,12 +183,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createApiClient()
-    
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const { userId, activeTeamId } = await requireActiveTeam(supabase)
 
     // Get query params
     const { searchParams } = new URL(request.url)
@@ -174,7 +194,8 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('work_logs')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('team_id', activeTeamId)
+      .eq('user_id', userId)
 
     if (date) {
       // If specific date is requested, get only one (the latest) for that date
@@ -199,6 +220,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ logs: data })
 
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'UNAUTHORIZED') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      if (error.message === 'ACTIVE_TEAM_REQUIRED') {
+        return NextResponse.json({ error: '활성 팀이 필요합니다.' }, { status: 409 })
+      }
+    }
+
     console.error('Work logs fetch error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

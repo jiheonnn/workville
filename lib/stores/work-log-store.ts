@@ -54,6 +54,7 @@ interface WorkLogStore {
   clearError: () => void
   setDirty: (dirty: boolean) => void
   setCheckInDate: (date: string) => void
+  resetForTeamTransition: () => void
 }
 
 const getToday = () => {
@@ -80,6 +81,14 @@ const noopStorage: StateStorage = {
 const workLogStorage = createJSONStorage(() =>
   typeof window !== 'undefined' ? window.localStorage : noopStorage
 )
+
+export const clearPersistedWorkLogState = () => {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.removeItem('work-log-storage')
+}
 
 const normalizeWorkLog = (workLog: Partial<WorkLog>): WorkLog => ({
   date: workLog.date || getToday(),
@@ -416,7 +425,28 @@ export const useWorkLogStore = create<WorkLogStore>()(
       
       setCheckInDate: (date) => {
         set({ checkInDate: date })
-      }
+      },
+
+      resetForTeamTransition: () => {
+        // 이유:
+        // 활성 팀이 바뀌면 이전 팀 기준으로 계산된 세션 날짜와 저장 시각을 그대로 유지하면
+        // 새 팀의 업무일지 로딩 기준이 꼬일 수 있습니다.
+        // 팀 전환/탈퇴/수락 시점에는 업무일지 관련 로컬 상태를 한 번에 초기화합니다.
+        clearPersistedWorkLogState()
+        set({
+          currentLog: null,
+          isLoading: false,
+          isSaving: false,
+          hasConflict: false,
+          error: null,
+          lastSavedAt: null,
+          isDirty: false,
+          checkInDate: null,
+          lastSessionDate: null,
+          localRevision: 0,
+          activeSaveRequestId: 0,
+        })
+      },
     }),
     {
       name: 'work-log-storage',

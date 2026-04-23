@@ -1,22 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
+
 import {
   buildMemberStats,
   resolveStatsDateRange,
   type StatsPeriod,
 } from '@/lib/stats/calculations'
+import { requireActiveTeam } from '@/lib/team/server-context'
 import { createClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
-    
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const { userId, activeTeamId } = await requireActiveTeam(supabase)
 
-    // Get query params
     const { searchParams } = new URL(request.url)
     const period = (searchParams.get('period') || 'week') as StatsPeriod
     const customStartDate = searchParams.get('startDate')
@@ -31,12 +27,13 @@ export async function GET(request: NextRequest) {
         supabase
           .from('profiles')
           .select('id, username, character_type, level, total_work_hours')
-          .eq('id', user.id)
+          .eq('id', userId)
           .single(),
         supabase
           .from('work_sessions')
           .select('user_id, date, check_in_time, check_out_time, duration_minutes')
-          .eq('user_id', user.id)
+          .eq('team_id', activeTeamId)
+          .eq('user_id', userId)
           .gte('date', range.startDateKey)
           .lte('date', range.endDateKey)
           .order('date', { ascending: true }),
@@ -60,8 +57,17 @@ export async function GET(request: NextRequest) {
         includeLevelProgress: true,
       })
     )
-
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'UNAUTHORIZED') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      if (error.message === 'ACTIVE_TEAM_REQUIRED') {
+        return NextResponse.json({ error: '활성 팀이 필요합니다.' }, { status: 409 })
+      }
+    }
+
     console.error('Personal stats error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

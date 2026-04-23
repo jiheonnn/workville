@@ -1,6 +1,14 @@
 type Row = Record<string, any>
 
-type TableName = 'work_logs' | 'work_sessions'
+type TableName =
+  | 'profiles'
+  | 'teams'
+  | 'team_members'
+  | 'team_invites'
+  | 'work_logs'
+  | 'work_sessions'
+  | 'user_status'
+  | 'work_log_template'
 
 type QueryAction = 'select' | 'insert' | 'update'
 
@@ -206,7 +214,7 @@ class MockQueryBuilder implements PromiseLike<ExecuteResult> {
 
     for (const payloadRow of payloadRows) {
       const row = cloneRow(payloadRow as Row)
-      const uniqueKey = `${row.user_id}:${row.date}`
+      const uniqueKey = `${row.team_id ?? 'no-team'}:${row.user_id}:${row.date}`
 
       if (this.store.uniqueInsertRaceKeys.has(uniqueKey)) {
         this.store.uniqueInsertRaceKeys.delete(uniqueKey)
@@ -272,8 +280,14 @@ export class MockSupabaseClient {
 
   constructor(state: MockSupabaseState = {}) {
     this.rowsByTable = {
+      profiles: (state.tables?.profiles || []).map(cloneRow),
+      teams: (state.tables?.teams || []).map(cloneRow),
+      team_members: (state.tables?.team_members || []).map(cloneRow),
+      team_invites: (state.tables?.team_invites || []).map(cloneRow),
       work_logs: (state.tables?.work_logs || []).map(cloneRow),
       work_sessions: (state.tables?.work_sessions || []).map(cloneRow),
+      user_status: (state.tables?.user_status || []).map(cloneRow),
+      work_log_template: (state.tables?.work_log_template || []).map(cloneRow),
     }
     this.uniqueInsertRaceKeys = state.uniqueInsertRaceKeys || new Set<string>()
     this.raceInsertRows = state.raceInsertRows || {}
@@ -295,6 +309,70 @@ export class MockSupabaseClient {
 
   from(table: TableName) {
     return new MockQueryBuilder(this, table)
+  }
+
+  rpc(fn: string, args: Record<string, any>) {
+    if (fn === 'transfer_team_owner') {
+      const teamId = args.target_team_id
+      const currentOwnerUserId = args.current_owner_user_id
+      const nextOwnerUserId = args.next_owner_user_id
+
+      if (currentOwnerUserId === nextOwnerUserId) {
+        return Promise.resolve({
+          data: null,
+          error: {
+            message: 'OWNER_ALREADY_ASSIGNED',
+          },
+        })
+      }
+
+      const memberships = this.getRows('team_members')
+      const currentOwnerMembership = memberships.find((membership) => {
+        return (
+          membership.team_id === teamId &&
+          membership.user_id === currentOwnerUserId &&
+          membership.role === 'owner' &&
+          membership.status === 'active'
+        )
+      })
+      const nextOwnerMembership = memberships.find((membership) => {
+        return (
+          membership.team_id === teamId &&
+          membership.user_id === nextOwnerUserId &&
+          membership.status === 'active'
+        )
+      })
+
+      if (!currentOwnerMembership) {
+        return Promise.resolve({
+          data: null,
+          error: {
+            message: 'CURRENT_OWNER_NOT_FOUND',
+          },
+        })
+      }
+
+      if (!nextOwnerMembership) {
+        return Promise.resolve({
+          data: null,
+          error: {
+            message: 'NEXT_OWNER_NOT_ACTIVE_MEMBER',
+          },
+        })
+      }
+
+      currentOwnerMembership.role = 'member'
+      nextOwnerMembership.role = 'owner'
+
+      return Promise.resolve({ data: null, error: null })
+    }
+
+    return Promise.resolve({
+      data: null,
+      error: {
+        message: `Unsupported rpc: ${fn}`,
+      },
+    })
   }
 
   getRows(table: TableName) {

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+
+import { requireActiveTeam } from '@/lib/team/server-context'
 import { createApiClient } from '@/lib/supabase/api-client'
 import { UserStatus } from '@/lib/types'
 import { getTodayKorea } from '@/lib/utils/date'
@@ -9,16 +11,7 @@ import { nanoid } from 'nanoid'
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createApiClient()
-    
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    console.log('API Status POST - User:', user?.id)
-    console.log('API Status POST - Auth Error:', authError)
-    
-    if (authError || !user) {
-      console.log('API Status POST - Unauthorized')
-      return NextResponse.json({ error: 'Unauthorized', authError: authError?.message }, { status: 401 })
-    }
+    const { userId, activeTeamId } = await requireActiveTeam(supabase)
 
     // Get request body
     const body = await request.json()
@@ -33,13 +26,14 @@ export async function POST(request: NextRequest) {
     const { data: currentStatus } = await supabase
       .from('user_status')
       .select('status')
-      .eq('user_id', user.id)
+      .eq('team_id', activeTeamId)
+      .eq('user_id', userId)
       .single()
 
     const { data: profile } = await supabase
       .from('profiles')
       .select('username')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single()
 
     const previousStatus = currentStatus?.status || 'home'
@@ -49,12 +43,13 @@ export async function POST(request: NextRequest) {
     if ((previousStatus === 'working' || previousStatus === 'break') && status === 'home') {
       // User is ending work session (going home from working or break)
       // Find the open work session
-      console.log('Looking for open session for user:', user.id)
+      console.log('Looking for open session for user:', userId)
       
       const { data: openSession, error: sessionFindError } = await supabase
         .from('work_sessions')
         .select('id, check_in_time, break_minutes, last_break_start')
-        .eq('user_id', user.id)
+        .eq('team_id', activeTeamId)
+        .eq('user_id', userId)
         .is('check_out_time', null)
         .order('check_in_time', { ascending: false })
         .limit(1)
@@ -105,7 +100,7 @@ export async function POST(request: NextRequest) {
         const { data: profileForUpdate } = await supabase
           .from('profiles')
           .select('total_work_hours')
-          .eq('id', user.id)
+          .eq('id', userId)
           .single()
 
         if (profileForUpdate) {
@@ -118,7 +113,7 @@ export async function POST(request: NextRequest) {
               total_work_hours: newTotalHours,
               level: newLevel
             })
-            .eq('id', user.id)
+            .eq('id', userId)
 
           if (profileError) {
             console.error('Error updating profile - Full details:', profileError)
@@ -132,12 +127,13 @@ export async function POST(request: NextRequest) {
         // Get work log for today to include in notification
         let workLog = null
         const today = getTodayKorea()
-        console.log('Fetching work log for date:', today, 'user:', user.id)
+        console.log('Fetching work log for date:', today, 'user:', userId)
         
         const { data: workLogData, error: workLogError } = await supabase
           .from('work_logs')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('team_id', activeTeamId)
+          .eq('user_id', userId)
           .eq('date', today)
           .single()
         
@@ -163,7 +159,8 @@ export async function POST(request: NextRequest) {
       const { data: openSession } = await supabase
         .from('work_sessions')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('team_id', activeTeamId)
+        .eq('user_id', userId)
         .is('check_out_time', null)
         .order('check_in_time', { ascending: false })
         .limit(1)
@@ -182,7 +179,8 @@ export async function POST(request: NextRequest) {
       const { data: openSession } = await supabase
         .from('work_sessions')
         .select('id, last_break_start, break_minutes')
-        .eq('user_id', user.id)
+        .eq('team_id', activeTeamId)
+        .eq('user_id', userId)
         .is('check_out_time', null)
         .order('check_in_time', { ascending: false })
         .limit(1)
@@ -211,7 +209,8 @@ export async function POST(request: NextRequest) {
       const { error: sessionError } = await supabase
         .from('work_sessions')
         .insert({
-          user_id: user.id,
+          team_id: activeTeamId,
+          user_id: userId,
           check_in_time: now,
           date: today // YYYY-MM-DD format in Korean timezone
         })
@@ -231,7 +230,8 @@ export async function POST(request: NextRequest) {
         const { data: todayWorkLog } = await supabase
           .from('work_logs')
           .select('id')
-          .eq('user_id', user.id)
+          .eq('team_id', activeTeamId)
+          .eq('user_id', userId)
           .eq('date', today)
           .single()
 
@@ -241,7 +241,8 @@ export async function POST(request: NextRequest) {
           const { data: lastSession } = await supabase
             .from('work_sessions')
             .select('date')
-            .eq('user_id', user.id)
+            .eq('team_id', activeTeamId)
+            .eq('user_id', userId)
             .neq('date', today)
             .order('date', { ascending: false })
             .limit(1)
@@ -252,7 +253,8 @@ export async function POST(request: NextRequest) {
             const { data: previousWorkLog } = await supabase
               .from('work_logs')
               .select('todos')
-              .eq('user_id', user.id)
+              .eq('team_id', activeTeamId)
+              .eq('user_id', userId)
               .eq('date', lastSession.date)
               .single()
 
@@ -274,7 +276,8 @@ export async function POST(request: NextRequest) {
                 const { error: createLogError } = await supabase
                   .from('work_logs')
                   .insert({
-                    user_id: user.id,
+                    team_id: activeTeamId,
+                    user_id: userId,
                     date: today,
                     todos: uncompletedTodos,
                     completed_todos: [],
@@ -312,7 +315,8 @@ export async function POST(request: NextRequest) {
     const { data: existingStatus } = await supabase
       .from('user_status')
       .select('user_id')
-      .eq('user_id', user.id)
+      .eq('team_id', activeTeamId)
+      .eq('user_id', userId)
       .single()
 
     let statusError
@@ -324,14 +328,16 @@ export async function POST(request: NextRequest) {
           status,
           last_updated: now
         })
-        .eq('user_id', user.id)
+        .eq('team_id', activeTeamId)
+        .eq('user_id', userId)
       statusError = error
     } else {
       // Insert new status
       const { error } = await supabase
         .from('user_status')
         .insert({
-          user_id: user.id,
+          team_id: activeTeamId,
+          user_id: userId,
           status,
           last_updated: now
         })
@@ -369,6 +375,16 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'UNAUTHORIZED') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      if (error.message === 'ACTIVE_TEAM_REQUIRED') {
+        return NextResponse.json({ error: '활성 팀이 필요합니다.' }, { status: 409 })
+      }
+    }
+
     console.error('API Status POST - Catch block error:', error)
     console.error('Error type:', typeof error)
     console.error('Error name:', error instanceof Error ? error.name : 'Unknown')
@@ -386,26 +402,17 @@ export async function GET(request: NextRequest) {
   try {
     console.log('API Status GET - Creating Supabase client...')
     const supabase = await createApiClient()
-    
-    console.log('API Status GET - Getting user...')
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    console.log('API Status GET - User:', user?.id)
-    console.log('API Status GET - Auth Error:', authError)
-    
-    if (authError || !user) {
-      console.log('API Status GET - Unauthorized')
-      return NextResponse.json({ error: 'Unauthorized', authError: authError?.message }, { status: 401 })
-    }
+    const { userId, activeTeamId } = await requireActiveTeam(supabase)
 
     // Get user status
     const { data: userStatus, error } = await supabase
       .from('user_status')
       .select('status, last_updated')
-      .eq('user_id', user.id)
+      .eq('team_id', activeTeamId)
+      .eq('user_id', userId)
       .single()
 
-    if (error) {
+    if (error && error.code !== 'PGRST116') {
       return NextResponse.json({ error: 'Failed to fetch status' }, { status: 500 })
     }
 
@@ -417,7 +424,8 @@ export async function GET(request: NextRequest) {
     const { data: todaySessions } = await supabase
       .from('work_sessions')
       .select('check_in_time, check_out_time, duration_minutes, break_minutes, last_break_start')
-      .eq('user_id', user.id)
+      .eq('team_id', activeTeamId)
+      .eq('user_id', userId)
       .eq('date', today)
       .order('check_in_time', { ascending: true })
 
@@ -451,7 +459,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      userId: user.id,
+      userId,
       status: userStatus?.status || 'home',
       lastUpdated: userStatus?.last_updated,
       todaySessions,
@@ -459,6 +467,16 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'UNAUTHORIZED') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      if (error.message === 'ACTIVE_TEAM_REQUIRED') {
+        return NextResponse.json({ error: '활성 팀이 필요합니다.' }, { status: 409 })
+      }
+    }
+
     console.error('Status fetch error:', error)
     console.error('Error type:', typeof error)
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')

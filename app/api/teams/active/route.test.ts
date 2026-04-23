@@ -8,14 +8,23 @@ vi.mock('@/lib/supabase/api-client', () => ({
   createApiClient: createApiClientMock,
 }))
 
-const { GET } = await import('./route')
+const { PUT } = await import('./route')
 
-describe('GET /api/work-logs/today', () => {
+const createRequest = (body: Record<string, unknown>) =>
+  new Request('http://localhost/api/teams/active', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+
+describe('PUT /api/teams/active', () => {
   beforeEach(() => {
     createApiClientMock.mockReset()
   })
 
-  it('요청 날짜가 없으면 check_in_time 재계산이 아니라 세션 date 기준으로 로그를 조회합니다', async () => {
+  it('열린 근무 세션이 있으면 active team 변경을 막습니다', async () => {
     const supabase = new MockSupabaseClient({
       tables: {
         profiles: [
@@ -40,49 +49,41 @@ describe('GET /api/work-logs/today', () => {
             joined_at: '2026-04-23T00:00:00.000Z',
             created_at: '2026-04-23T00:00:00.000Z',
           },
+          {
+            id: 'membership-2',
+            team_id: 'team-2',
+            user_id: 'user-1',
+            role: 'member',
+            status: 'active',
+            joined_at: '2026-04-23T00:00:00.000Z',
+            created_at: '2026-04-23T00:00:00.000Z',
+          },
         ],
         work_sessions: [
           {
             id: 'session-1',
             team_id: 'team-1',
             user_id: 'user-1',
-            check_in_time: '2026-04-22T15:30:00.000Z',
+            check_in_time: '2026-04-23T00:00:00.000Z',
             check_out_time: null,
             duration_minutes: null,
             break_minutes: 0,
             last_break_start: null,
             date: '2026-04-23',
-            created_at: '2026-04-22T15:30:00.000Z',
-          },
-        ],
-        work_logs: [
-          {
-            id: 'log-1',
-            team_id: 'team-1',
-            user_id: 'user-1',
-            date: '2026-04-23',
-            content: 'today',
-            todos: [],
-            completed_todos: [],
-            roi_high: '',
-            roi_low: '',
-            tomorrow_priority: '',
-            feedback: '',
-            version: 2,
             created_at: '2026-04-23T00:00:00.000Z',
-            updated_at: '2026-04-23T00:00:00.000Z',
           },
         ],
       },
     })
     createApiClientMock.mockResolvedValue(supabase)
 
-    const response = await GET(new Request('http://localhost/api/work-logs/today') as any)
-    const body = await response.json()
+    const response = await PUT(
+      createRequest({
+        teamId: 'team-2',
+      }) as any
+    )
 
-    expect(response.status).toBe(200)
-    expect(body.session.date).toBe('2026-04-23')
-    expect(body.workLog.id).toBe('log-1')
-    expect(body.workLog.date).toBe('2026-04-23')
+    expect(response.status).toBe(409)
+    expect(supabase.getRows('profiles')[0].active_team_id).toBe('team-1')
   })
 })

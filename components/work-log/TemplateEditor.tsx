@@ -161,7 +161,7 @@ export default function TemplateEditor() {
 
       <div className="mt-6 p-5 bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border border-emerald-200">
         <p className="text-sm text-emerald-800 font-medium">
-          💡 이 템플릿은 모든 팀원이 공유합니다. 수정 시 다른 팀원들의 업무 일지 작성에 영향을 줍니다.
+          💡 이 템플릿은 현재 활성 팀의 팀원들과 공유됩니다. 수정 시 같은 팀의 업무 일지 작성에 반영됩니다.
         </p>
       </div>
     </div>

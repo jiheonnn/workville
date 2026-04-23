@@ -58,25 +58,14 @@ export default function CharacterSelectPage() {
             id: user.id,
             email: user.email!,
             username: user.user_metadata.username || user.email!.split('@')[0],
-            character_type: selectedCharacter
+            character_type: selectedCharacter,
+            active_team_id: null,
           })
 
         if (insertError) {
           setError('프로필 생성 중 오류가 발생했습니다.')
           console.error('Profile insert error:', insertError)
           return
-        }
-
-        // user_status도 생성
-        const { error: statusError } = await supabase
-          .from('user_status')
-          .insert({
-            user_id: user.id,
-            status: 'home'
-          })
-
-        if (statusError) {
-          console.error('Status insert error:', statusError)
         }
       } else {
         // 프로필이 있으면 업데이트
@@ -92,7 +81,7 @@ export default function CharacterSelectPage() {
         }
       }
 
-      router.push('/village')
+      router.push('/team')
       router.refresh()
     } catch (err) {
       setError('외관 저장 중 오류가 발생했습니다.')
