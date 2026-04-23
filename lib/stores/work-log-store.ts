@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
 import { getTodayKorea } from '@/lib/utils/date'
 
 export interface TodoItem {
@@ -64,6 +64,16 @@ const createEmptyLog = (date?: string): WorkLog => ({
   tomorrow_priority: '',
   feedback: ''
 })
+
+const noopStorage: StateStorage = {
+  getItem: () => null,
+  setItem: () => {},
+  removeItem: () => {},
+}
+
+const workLogStorage = createJSONStorage(() =>
+  typeof window !== 'undefined' ? window.localStorage : noopStorage
+)
 
 export const useWorkLogStore = create<WorkLogStore>()(
   persist(
@@ -344,6 +354,7 @@ export const useWorkLogStore = create<WorkLogStore>()(
     }),
     {
       name: 'work-log-storage',
+      storage: workLogStorage,
       partialize: (state) => ({
         // Don't persist currentLog, only checkInDate and lastSessionDate
         // currentLog should be loaded fresh based on checkInDate or lastSessionDate

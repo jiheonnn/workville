@@ -1,6 +1,7 @@
 'use client'
 
 import { memo } from 'react'
+import Image from 'next/image'
 import {
   BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -32,10 +33,9 @@ interface TeamStats {
 interface TeamStatsViewProps {
   stats: TeamStats
   formatDate: (dateString: string) => string
-  getCharacterColor: (characterType: string) => string
 }
 
-const TeamStatsView = memo(({ stats, formatDate, getCharacterColor }: TeamStatsViewProps) => {
+const TeamStatsView = memo(({ stats, formatDate }: TeamStatsViewProps) => {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
@@ -153,9 +153,11 @@ const TeamStatsView = memo(({ stats, formatDate, getCharacterColor }: TeamStatsV
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="w-10 h-10 rounded-full flex-shrink-0 shadow-md overflow-hidden">
-                        <img 
+                        <Image
                           src={`/characters/character${member.characterType}/normal.png`}
                           alt={member.username}
+                          width={40}
+                          height={40}
                           className="w-full h-full object-cover"
                         />
                       </div>

@@ -39,9 +39,14 @@ yarn install
 
 # 개발 서버 실행
 yarn dev
+
+# 린트 실행
+yarn lint
 ```
 
 http://localhost:3000 에서 애플리케이션을 확인할 수 있습니다.
+
+`yarn lint`는 Next.js 16부터 제거된 `next lint` 대신 ESLint CLI를 사용합니다.
 
 ## 📁 프로젝트 구조
 
@@ -59,7 +64,7 @@ workville/
 
 ## 🛠 기술 스택
 
-- **Frontend**: Next.js 15, React 19, TypeScript
+- **Frontend**: Next.js 16, React 19, TypeScript
 - **Styling**: Tailwind CSS
 - **Backend**: Supabase (PostgreSQL, Auth, Realtime)
 - **State**: Zustand

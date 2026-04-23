@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -33,11 +33,10 @@ export async function middleware(request: NextRequest) {
     error: authError
   } = await supabase.auth.getUser()
 
-  console.log('Middleware - Path:', request.nextUrl.pathname)
-  console.log('Middleware - User:', user?.id)
-  console.log('Middleware - Auth Error:', authError)
-  
-  // 보호된 라우트 체크
+  console.log('Proxy - Path:', request.nextUrl.pathname)
+  console.log('Proxy - User:', user?.id)
+  console.log('Proxy - Auth Error:', authError)
+
   if (
     !user &&
     (request.nextUrl.pathname.startsWith('/village') ||
@@ -49,7 +48,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // 로그인한 유저가 인증 페이지 접근 시 리다이렉트
   if (
     user &&
     (request.nextUrl.pathname === '/login' ||
@@ -60,7 +58,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // 캐릭터 선택하지 않은 유저 체크
   if (user && request.nextUrl.pathname !== '/character-select') {
     const { data: profile } = await supabase
       .from('profiles')

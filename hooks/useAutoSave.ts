@@ -1,20 +1,19 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useWorkLogStore } from '@/lib/stores/work-log-store'
 import { debounce } from '@/lib/utils'
 
 export function useAutoSave() {
   const { currentLog, isDirty, saveToDB, saveToLocalStorage } = useWorkLogStore()
-  const saveTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Debounced save to localStorage (1 second)
-  const debouncedLocalSave = useCallback(
-    debounce(() => {
+  const debouncedLocalSave = useMemo(
+    () => debounce(() => {
       if (isDirty) {
         saveToLocalStorage()
         console.log('Auto-saved to localStorage')
       }
     }, 1000),
-    [isDirty]
+    [isDirty, saveToLocalStorage]
   )
 
   // Save to DB every 5 seconds if dirty

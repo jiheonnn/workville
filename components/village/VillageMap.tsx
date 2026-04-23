@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import Character from './Character'
 import GridCell from './GridCell'
-import { UserStatus, CharacterType } from '@/lib/types'
+import { UserStatus, CharacterType, numberToCharacterType } from '@/lib/types'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimePresence } from '@/hooks/useRealtimePresence'
 import { useVillageStore } from '@/lib/stores/village-store'
@@ -16,10 +17,48 @@ interface CharacterData {
   position: { x: number; y: number }
 }
 
+interface ApiUserStatus {
+  status: UserStatus
+}
+
+interface ApiUser {
+  id: string
+  username: string | null
+  character_type: number | null
+  user_status?: ApiUserStatus[] | ApiUserStatus | null
+}
+
+const SPECIAL_CELLS = {
+  houses: [
+    { x: 2, y: 1, type: 'house', id: 'house-1' },
+    { x: 4, y: 1, type: 'house', id: 'house-2' },
+    { x: 6, y: 1, type: 'house', id: 'house-3' },
+    { x: 8, y: 1, type: 'house', id: 'house-4' },
+  ],
+  office: { x: 5, y: 4, type: 'office' },
+  breakArea: { x: 5, y: 6, type: 'break' },
+} as const
+
+function getUserStatus(user: ApiUser): UserStatus {
+  if (!user.user_status) {
+    return 'home'
+  }
+
+  if (Array.isArray(user.user_status) && user.user_status.length > 0) {
+    return user.user_status[0].status
+  }
+
+  if (typeof user.user_status === 'object' && 'status' in user.user_status) {
+    return user.user_status.status
+  }
+
+  return 'home'
+}
+
 export default function VillageMap() {
   const [characters, setCharacters] = useState<CharacterData[]>([])
-  const channelRef = useRef<any>(null)
-  const { onlineUsers, currentUserStatus } = useVillageStore()
+  const channelRef = useRef<RealtimeChannel | null>(null)
+  const { currentUserStatus } = useVillageStore()
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   
   // Initialize presence tracking
@@ -45,20 +84,8 @@ export default function VillageMap() {
   const gridCols = 9
   const gridRows = 7
 
-  // Define special areas
-  const specialCells = {
-    houses: [
-      { x: 2, y: 1, type: 'house', id: 'house-1' },
-      { x: 4, y: 1, type: 'house', id: 'house-2' },
-      { x: 6, y: 1, type: 'house', id: 'house-3' },
-      { x: 8, y: 1, type: 'house', id: 'house-4' },
-    ],
-    office: { x: 5, y: 4, type: 'office' },
-    breakArea: { x: 5, y: 6, type: 'break' },
-  }
-
   // Position mapping based on status
-  const getPositionForStatus = (status: UserStatus, characterIndex: number): { x: number; y: number } => {
+  const getPositionForStatus = useCallback((status: UserStatus, characterIndex: number): { x: number; y: number } => {
     switch (status) {
       case 'working':
         // Office positions (center area)
@@ -72,7 +99,7 @@ export default function VillageMap() {
       
       case 'home':
         // House positions (top row)
-        const housePositions = specialCells.houses.map(h => ({ x: h.x, y: h.y }))
+        const housePositions = SPECIAL_CELLS.houses.map(h => ({ x: h.x, y: h.y }))
         return housePositions[characterIndex % housePositions.length]
       
       case 'break':
@@ -88,12 +115,11 @@ export default function VillageMap() {
       default:
         return { x: 5, y: 4 } // Default to office
     }
-  }
+  }, [])
 
   // Set up realtime subscription and initial fetch
   useEffect(() => {
     const supabase = createClient()
-
     // Define fetchUsers inside useEffect to avoid React 19 concurrent rendering issues
     const fetchUsers = async () => {
       console.log('fetchUsers called - Starting...')
@@ -107,12 +133,12 @@ export default function VillageMap() {
           return
         }
 
-        const { users } = await response.json()
+        const { users } = await response.json() as { users?: ApiUser[] }
         console.log('Fetched users data:', users)
         
         if (users) {
           // First, filter valid users
-          const validUsers = users.filter((user: any) => user.character_type !== null)
+          const validUsers = users.filter((user) => user.character_type !== null)
           
           // Group users by status to assign positions correctly
           const usersByStatus: Record<UserStatus, typeof validUsers> = {
@@ -121,39 +147,22 @@ export default function VillageMap() {
             break: []
           }
           
-          validUsers.forEach((user: any) => {
-            // Handle both array and object cases
-            let status: UserStatus = 'home'
-            if (user.user_status) {
-              if (Array.isArray(user.user_status) && user.user_status.length > 0) {
-                status = user.user_status[0].status as UserStatus
-              } else if (typeof user.user_status === 'object' && 'status' in user.user_status) {
-                status = user.user_status.status as UserStatus
-              }
-            }
+          validUsers.forEach((user) => {
+            const status = getUserStatus(user)
             usersByStatus[status].push(user)
           })
           
           // Map users with correct position indices
-          const characterData: CharacterData[] = validUsers.map((user: any) => {
-            // Handle both array and object cases
-            let status: UserStatus = 'home'
-            if (user.user_status) {
-              if (Array.isArray(user.user_status) && user.user_status.length > 0) {
-                status = user.user_status[0].status
-              } else if (typeof user.user_status === 'object' && 'status' in user.user_status) {
-                status = user.user_status.status as UserStatus
-              }
-            }
-            
+          const characterData: CharacterData[] = validUsers.map((user) => {
+            const status = getUserStatus(user)
             // Find the index of this user within their status group
-            const statusIndex = usersByStatus[status].findIndex((u: any) => u.id === user.id)
+            const statusIndex = usersByStatus[status].findIndex((candidate) => candidate.id === user.id)
             const position = getPositionForStatus(status, statusIndex)
             
             return {
               id: user.id,
               username: user.username || 'Anonymous',
-              characterType: user.character_type as CharacterType,
+              characterType: numberToCharacterType(user.character_type as 1 | 2 | 3 | 4),
               status: status,
               position: position,
             }
@@ -195,35 +204,29 @@ export default function VillageMap() {
         supabase.removeChannel(channelRef.current)
       }
     }
-  }, [])
+  }, [getPositionForStatus])
 
-  // Optimistic update for current user's character position
-  useEffect(() => {
-    if (!currentUserId || !currentUserStatus) return
-    
-    setCharacters(prevCharacters => {
-      const updatedCharacters = [...prevCharacters]
-      const currentUserIndex = updatedCharacters.findIndex(char => char.id === currentUserId)
-      
-      if (currentUserIndex !== -1) {
-        // Find the index of this user within their NEW status group
-        const usersWithNewStatus = updatedCharacters.filter(
-          char => char.id === currentUserId || char.status === currentUserStatus
-        ).length - 1
-        
-        const newPosition = getPositionForStatus(currentUserStatus, usersWithNewStatus)
-        
-        // Update current user's status and position immediately
-        updatedCharacters[currentUserIndex] = {
-          ...updatedCharacters[currentUserIndex],
-          status: currentUserStatus,
-          position: newPosition
-        }
+  const displayedCharacters = useMemo(() => {
+    if (!currentUserId || !currentUserStatus) {
+      return characters
+    }
+
+    return characters.map((character) => {
+      if (character.id !== currentUserId) {
+        return character
       }
-      
-      return updatedCharacters
+
+      const usersWithNewStatus = characters.filter(
+        (candidate) => candidate.id === currentUserId || candidate.status === currentUserStatus
+      ).length - 1
+
+      return {
+        ...character,
+        status: currentUserStatus,
+        position: getPositionForStatus(currentUserStatus, usersWithNewStatus),
+      }
     })
-  }, [currentUserId, currentUserStatus])
+  }, [characters, currentUserId, currentUserStatus, getPositionForStatus])
 
   // Show loading state while auth is loading - removed this check
   // The component should still work even if auth is loading
@@ -265,10 +268,10 @@ export default function VillageMap() {
                     
                     // Check if this is a special cell
                     let cellType: 'grass' | 'house' | 'office' | 'break' = 'grass'
-                    const house = specialCells.houses.find(h => h.x === x && h.y === y)
+                    const house = SPECIAL_CELLS.houses.find(h => h.x === x && h.y === y)
                     if (house) cellType = 'house'
-                    else if (x === specialCells.office.x && y === specialCells.office.y) cellType = 'office'
-                    else if (x === specialCells.breakArea.x && y === specialCells.breakArea.y) cellType = 'break'
+                    else if (x === SPECIAL_CELLS.office.x && y === SPECIAL_CELLS.office.y) cellType = 'office'
+                    else if (x === SPECIAL_CELLS.breakArea.x && y === SPECIAL_CELLS.breakArea.y) cellType = 'break'
 
                     return (
                       <GridCell
@@ -285,9 +288,8 @@ export default function VillageMap() {
               {/* Character layer */}
               <div className="absolute inset-0 grid grid-cols-9 grid-rows-7 gap-1.5 p-6" style={{ zIndex: 9999 }}>
                 {/* Render characters */}
-                {characters.map((character) => {
+                {displayedCharacters.map((character) => {
                   // Consider users as online if they are working or on break
-                  const isOnline = character.status === 'working' || character.status === 'break'
                   return (
                     <Character
                       key={character.id}
@@ -295,7 +297,6 @@ export default function VillageMap() {
                       status={character.status}
                       position={character.position}
                       username={character.username}
-                      isOnline={isOnline}
                     />
                   )
                 })}

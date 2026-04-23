@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import { CharacterType } from '@/lib/types'
 import CalendarView from '@/components/work-log/CalendarView'
@@ -49,21 +49,9 @@ export default function LogsPage() {
   const [endDate, setEndDate] = useState<string>('')
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | undefined>()
   const [allLogs, setAllLogs] = useState<WorkLog[]>([]) // Store all logs for calendar view
-  const [calendarDataFetched, setCalendarDataFetched] = useState(false) // Track if calendar data is fetched
+  const calendarDataFetchedRef = useRef(false)
 
-  useEffect(() => {
-    fetchLogs()
-  }, [selectedUserId, startDate, endDate])
-
-  // Fetch all logs when switching to calendar view (only once)
-  useEffect(() => {
-    if (viewMode === 'calendar' && !calendarDataFetched) {
-      fetchAllLogs()
-      setCalendarDataFetched(true)
-    }
-  }, [viewMode, calendarDataFetched])
-
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -86,9 +74,9 @@ export default function LogsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedUserId, startDate, endDate])
 
-  const fetchAllLogs = async () => {
+  const fetchAllLogs = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -106,7 +94,21 @@ export default function LogsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    void fetchLogs()
+  }, [fetchLogs])
+
+  // Fetch all logs when switching to calendar view (only once)
+  useEffect(() => {
+    if (viewMode !== 'calendar' || calendarDataFetchedRef.current) {
+      return
+    }
+
+    calendarDataFetchedRef.current = true
+    void fetchAllLogs()
+  }, [fetchAllLogs, viewMode])
 
   const clearFilters = () => {
     setSelectedUserId('')

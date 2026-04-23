@@ -18,7 +18,7 @@ export default function MainLayout({
 
   useEffect(() => {
     const supabase = createClient()
-    
+
     // Set loading to true at the start
     setLoading(true)
     
@@ -86,8 +86,8 @@ export default function MainLayout({
   }, [setUser, setLoading])
 
   const handleLogout = async () => {
-    const supabase = createClient()
     try {
+      const supabase = createClient()
       const { error } = await supabase.auth.signOut()
       if (error) {
         console.error('Logout error:', error)

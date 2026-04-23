@@ -96,21 +96,7 @@ export default function StatsPage() {
   const [customStartDate, setCustomStartDate] = useState<string>('')
   const [customEndDate, setCustomEndDate] = useState<string>('')
 
-  useEffect(() => {
-    fetchTeamMembers()
-  }, [])
-
-  useEffect(() => {
-    if (period === 'custom' && (!customStartDate || !customEndDate)) {
-      return
-    }
-    if (activeTab === 'member' && !selectedMemberId) {
-      return
-    }
-    fetchStats()
-  }, [activeTab, period, customStartDate, customEndDate, selectedMemberId])
-
-  const fetchTeamMembers = async () => {
+  const fetchTeamMembers = useCallback(async () => {
     try {
       const response = await fetch('/api/team/members')
       if (!response.ok) throw new Error('Failed to fetch team members')
@@ -122,9 +108,9 @@ export default function StatsPage() {
     } catch (err) {
       console.error('Error fetching team members:', err)
     }
-  }
+  }, [])
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -160,7 +146,21 @@ export default function StatsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [activeTab, period, customEndDate, customStartDate, selectedMemberId])
+
+  useEffect(() => {
+    void fetchTeamMembers()
+  }, [fetchTeamMembers])
+
+  useEffect(() => {
+    if (period === 'custom' && (!customStartDate || !customEndDate)) {
+      return
+    }
+    if (activeTab === 'member' && !selectedMemberId) {
+      return
+    }
+    void fetchStats()
+  }, [activeTab, period, customStartDate, customEndDate, selectedMemberId, fetchStats])
 
   const formatDate = useCallback((dateString: string) => {
     const date = new Date(dateString)
@@ -307,9 +307,9 @@ export default function StatsPage() {
         )}
 
         {/* Team Stats */}
-        {activeTab === 'team' && teamStats && (
-          <TeamStatsView stats={teamStats} formatDate={formatDate} getCharacterColor={getCharacterColor} />
-        )}
+          {activeTab === 'team' && teamStats && (
+            <TeamStatsView stats={teamStats} formatDate={formatDate} />
+          )}
 
         {/* Member Stats */}
         {activeTab === 'member' && (

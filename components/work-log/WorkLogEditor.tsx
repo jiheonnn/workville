@@ -11,7 +11,7 @@ const ROISection = lazy(() => import('./ROISection'))
 const FeedbackSection = lazy(() => import('./FeedbackSection'))
 
 export default function WorkLogEditor() {
-  const { currentLog, isLoading, error, loadTodayLog, clearError, checkInDate, createNewLog } = useWorkLogStore()
+  const { currentLog, isLoading, error, loadTodayLog, clearError, checkInDate } = useWorkLogStore()
   const { isSaving, lastSavedAt, isDirty } = useAutoSave()
 
   // Optimized single useEffect for initial load and checkInDate changes
@@ -25,7 +25,7 @@ export default function WorkLogEditor() {
     
     // Load the log for the target date
     loadTodayLog(targetDate)
-  }, [checkInDate]) // Only re-run when checkInDate changes
+  }, [checkInDate, currentLog, isLoading, loadTodayLog]) // Only re-run when the target log state changes
 
   if (isLoading && !currentLog) {
     return (

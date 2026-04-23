@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import Image from 'next/image'
 import { CharacterType, UserStatus } from '@/lib/types'
 
@@ -9,16 +9,12 @@ interface CharacterProps {
   status: UserStatus
   position: { x: number; y: number }
   username: string
-  isOnline?: boolean
 }
 
-export default function Character({ characterType, status, position, username, isOnline = true }: CharacterProps) {
-  const [imageError, setImageError] = useState(false)
-
-  // Reset error state when characterType or status changes
-  useEffect(() => {
-    setImageError(false)
-  }, [characterType, status])
+export default function Character({ characterType, status, position, username }: CharacterProps) {
+  const [failedImageKey, setFailedImageKey] = useState<string | null>(null)
+  const imageKey = `${characterType}-${status}`
+  const imageError = failedImageKey === imageKey
 
   // Build the image paths for both animation frames
   const imagePath1 = characterType 
@@ -31,8 +27,8 @@ export default function Character({ characterType, status, position, username, i
 
   // Handle image load error
   const handleImageError = useCallback(() => {
-    setImageError(true)
-  }, [])
+    setFailedImageKey(imageKey)
+  }, [imageKey])
 
   return (
     <div

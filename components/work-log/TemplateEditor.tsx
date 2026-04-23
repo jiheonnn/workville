@@ -18,7 +18,6 @@ export default function TemplateEditor() {
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { user } = useAuthStore()
-  const supabase = createClient()
 
   // Fetch current template
   const fetchTemplate = useCallback(async () => {
@@ -71,8 +70,8 @@ export default function TemplateEditor() {
 
   // Subscribe to realtime updates
   useEffect(() => {
-    // Fetch template on mount
-    fetchTemplate()
+    void fetchTemplate()
+    const supabase = createClient()
 
     const channel = supabase
       .channel('template-changes')
@@ -92,7 +91,7 @@ export default function TemplateEditor() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [fetchTemplate, supabase])
+  }, [fetchTemplate])
 
   if (!template) {
     return <div className="animate-pulse bg-gradient-to-r from-gray-100 to-gray-200 h-48 rounded-2xl" />

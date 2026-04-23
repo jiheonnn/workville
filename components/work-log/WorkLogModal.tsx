@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 interface WorkLogModalProps {
   isOpen: boolean
@@ -14,14 +14,7 @@ export default function WorkLogModal({ isOpen, onClose, onSubmit }: WorkLogModal
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch template when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      fetchTemplate()
-    }
-  }, [isOpen])
-
-  const fetchTemplate = async () => {
+  const fetchTemplate = useCallback(async () => {
     try {
       const response = await fetch('/api/template')
       
@@ -67,7 +60,14 @@ export default function WorkLogModal({ isOpen, onClose, onSubmit }: WorkLogModal
       setTemplate(fallbackTemplate)
       setContent(fallbackTemplate)
     }
-  }
+  }, [])
+
+  // Fetch template when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      void fetchTemplate()
+    }
+  }, [fetchTemplate, isOpen])
 
   const handleSubmit = async () => {
     console.log('handleSubmit called')

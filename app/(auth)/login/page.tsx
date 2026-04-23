@@ -11,7 +11,6 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -19,6 +18,7 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      const supabase = createClient()
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -45,6 +45,7 @@ export default function LoginPage() {
 
     setLoading(true)
     try {
+      const supabase = createClient()
       console.log('Attempting password reset for:', email)
       const { error, data } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,

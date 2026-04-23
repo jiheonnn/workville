@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useCallback } from 'react'
+import Image from 'next/image'
 import Calendar from 'react-calendar'
 import 'react-calendar/dist/Calendar.css'
 import { CharacterType } from '@/lib/types'
@@ -67,9 +68,11 @@ export default function CalendarView({ logs, onDateSelect, selectedDate }: Calen
       <div className="mt-8 flex flex-wrap justify-center gap-0.5">
         {uniqueUsers.map((log) => (
           <div key={log.user_id} className="relative">
-            <img 
+            <Image
               src={`/characters/${log.profiles.character_type}/normal.png`}
               alt={log.profiles.username}
+              width={28}
+              height={28}
               className="w-7 h-7 rounded-full border-2 border-white shadow-sm"
               title={log.profiles.username}
             />
@@ -111,8 +114,8 @@ export default function CalendarView({ logs, onDateSelect, selectedDate }: Calen
         tileContent={tileContent}
         tileClassName={tileClassName}
         locale="ko-KR"
-        formatShortWeekday={(locale, date) => ['일', '월', '화', '수', '목', '금', '토'][date.getDay()]}
-        formatMonthYear={(locale, date) => `${date.getFullYear()}년 ${date.getMonth() + 1}월`}
+        formatShortWeekday={(_locale, date) => ['일', '월', '화', '수', '목', '금', '토'][date.getDay()]}
+        formatMonthYear={(_locale, date) => `${date.getFullYear()}년 ${date.getMonth() + 1}월`}
         className="rounded-lg shadow-inner border-0"
         navigationLabel={({ label }) => (
           <span className="flex items-center justify-center gap-2">

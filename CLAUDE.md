@@ -18,7 +18,7 @@ yarn lint        # Run ESLint
 ## Architecture & Key Patterns
 
 ### Tech Stack
-- **Frontend**: Next.js 15 (App Router), React 19, TypeScript
+- **Frontend**: Next.js 16 (App Router), React 19, TypeScript
 - **Database**: Supabase (PostgreSQL + Realtime + Auth)
 - **State**: Zustand for client state
 - **Styling**: Tailwind CSS 4
@@ -32,7 +32,7 @@ yarn lint        # Run ESLint
 
 ### Authentication Flow
 1. Supabase Auth handles email/password authentication
-2. Middleware (`middleware.ts`) protects routes and enforces character selection
+2. Proxy (`proxy.ts`) protects routes and enforces character selection
 3. New users must select a character before accessing the main app
 4. Profile and status records are auto-created via database triggers
 

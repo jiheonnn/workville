@@ -6,12 +6,12 @@ import { useVillageStore } from '@/lib/stores/village-store'
 import { useAuthStore } from '@/lib/stores/auth-store'
 
 export function useRealtimePresence() {
-  const supabase = createClient()
   const { user } = useAuthStore()
   const { setOnlineUsers, removeOnlineUser } = useVillageStore()
 
   const trackPresence = useCallback(async () => {
     if (!user) return
+    const supabase = createClient()
 
     const channel = supabase.channel('online-users')
 
@@ -43,7 +43,7 @@ export function useRealtimePresence() {
     return () => {
       channel.unsubscribe()
     }
-  }, [user, supabase, setOnlineUsers, removeOnlineUser])
+  }, [user, setOnlineUsers, removeOnlineUser])
 
   useEffect(() => {
     const unsubscribe = trackPresence()

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { CharacterType } from '@/types/database'
@@ -13,22 +13,18 @@ export default function CharacterSelectPage() {
   const [takenCharacters, setTakenCharacters] = useState<CharacterType[]>([])
   const [loadingCharacters, setLoadingCharacters] = useState(true)
   const router = useRouter()
-  const supabase = createClient()
 
-  useEffect(() => {
-    checkAuth()
-    fetchTakenCharacters()
-  }, [])
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
+    const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       router.push('/login')
     }
-  }
+  }, [router])
 
-  const fetchTakenCharacters = async () => {
+  const fetchTakenCharacters = useCallback(async () => {
     try {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('profiles')
         .select('character_type')
@@ -50,7 +46,12 @@ export default function CharacterSelectPage() {
     } finally {
       setLoadingCharacters(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    void checkAuth()
+    void fetchTakenCharacters()
+  }, [checkAuth, fetchTakenCharacters])
 
   const handleCharacterSelect = async () => {
     if (!selectedCharacter) {
@@ -62,6 +63,7 @@ export default function CharacterSelectPage() {
     setError(null)
 
     try {
+      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         router.push('/login')

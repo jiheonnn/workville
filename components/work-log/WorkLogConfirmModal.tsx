@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useWorkLogStore } from '@/lib/stores/work-log-store'
 
 interface WorkLogConfirmModalProps {
@@ -18,22 +18,17 @@ interface WorkLog {
   feedback: string
 }
 
+interface WorkLogApiItem extends WorkLog {
+  date: string
+}
+
 export default function WorkLogConfirmModal({ isOpen, onClose, onConfirm }: WorkLogConfirmModalProps) {
   const [workLog, setWorkLog] = useState<WorkLog | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [displayDate, setDisplayDate] = useState<string | null>(null)
   const { checkInDate } = useWorkLogStore()
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchTodayWorkLog()
-    } else {
-      // Reset state when modal closes
-      setWorkLog(null)
-    }
-  }, [isOpen, checkInDate])
-
-  const fetchTodayWorkLog = async () => {
+  const fetchTodayWorkLog = useCallback(async () => {
     setIsLoading(true)
     try {
       // First try to get active session to determine the correct date
@@ -70,13 +65,13 @@ export default function WorkLogConfirmModal({ isOpen, onClose, onConfirm }: Work
         throw new Error('Failed to fetch work log')
       }
 
-      const { logs } = await response.json()
+      const { logs } = await response.json() as { logs: WorkLogApiItem[] }
       console.log('Fetched logs:', logs)
       console.log('Target date:', targetDate)
       
       if (logs && logs.length > 0) {
         // Filter logs to find the exact date match
-        const targetLog = logs.find((log: any) => log.date === targetDate)
+        const targetLog = logs.find((log) => log.date === targetDate)
         
         if (targetLog) {
           console.log('Found log for target date:', targetLog)
@@ -92,7 +87,7 @@ export default function WorkLogConfirmModal({ isOpen, onClose, onConfirm }: Work
         } else {
           console.log('No log found matching target date in returned logs')
           console.log('First log date:', logs[0].date)
-          console.log('All log dates:', logs.map((l: any) => l.date))
+          console.log('All log dates:', logs.map((log) => log.date))
           setWorkLog(null)
         }
       } else {
@@ -105,7 +100,15 @@ export default function WorkLogConfirmModal({ isOpen, onClose, onConfirm }: Work
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [checkInDate])
+
+  useEffect(() => {
+    if (!isOpen) {
+      return
+    }
+
+    void fetchTodayWorkLog()
+  }, [fetchTodayWorkLog, isOpen])
 
   if (!isOpen) return null
 

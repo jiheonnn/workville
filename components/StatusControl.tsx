@@ -8,11 +8,10 @@ import WorkLogConfirmModal from '@/components/work-log/WorkLogConfirmModal'
 export default function StatusControl() {
   const [showWorkLogModal, setShowWorkLogModal] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
-  const { 
+  const {
     currentUserStatus, 
     todaySessions,
     totalDurationMinutes,
-    isLoading, 
     error,
     fetchCurrentStatus,
     updateMyStatus 
@@ -47,7 +46,7 @@ export default function StatusControl() {
     }, 1000)
     
     return () => clearInterval(timer)
-  }, [])
+  }, [fetchCurrentStatus])
 
   const handleStatusChange = (newStatus: UserStatus) => {
     console.log('handleStatusChange called with:', newStatus)
