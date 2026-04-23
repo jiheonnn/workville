@@ -1,4 +1,4 @@
-export type CharacterType = 1 | 2 | 3 | 4;
+export type CharacterType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 export type UserStatus = 'working' | 'home' | 'break';
 
 export interface TodoItem {

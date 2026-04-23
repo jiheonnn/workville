@@ -54,6 +54,10 @@ export function getCharacterEmoji(characterType: CharacterType | null | undefine
     2: '🔵',
     3: '🟢',
     4: '🟣',
+    5: '🟠',
+    6: '🟤',
+    7: '🟡',
+    8: '🩷',
   }
 
   return emojis[normalizeCharacterType(characterType)]
@@ -65,6 +69,10 @@ export function getCharacterColor(characterType: CharacterType | null | undefine
     2: '#3B82F6',
     3: '#10B981',
     4: '#8B5CF6',
+    5: '#F97316',
+    6: '#6B7280',
+    7: '#EAB308',
+    8: '#EC4899',
   }
 
   return colors[normalizeCharacterType(characterType)]

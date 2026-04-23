@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
       .order('username')
 
     // 이유:
-    // character_type은 프로젝트 전체에서 숫자(1~4)로 통일합니다.
+    // character_type은 프로젝트 전체에서 숫자(1~8)로 통일합니다.
     // 이미지 경로는 클라이언트 helper가 조합하도록 두고, API는 DB 원본 타입을 그대로 반환합니다.
     const transformedLogs = logsWithSessions?.map(log => {
       const profile = log.profiles as any

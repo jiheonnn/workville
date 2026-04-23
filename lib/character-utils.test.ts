@@ -2,7 +2,12 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { getCharacterImagePath, getCharacterSpritePaths } from './character-utils'
+import {
+  getCharacterColor,
+  getCharacterEmoji,
+  getCharacterImagePath,
+  getCharacterSpritePaths,
+} from './character-utils'
 
 describe('getCharacterImagePath', () => {
   it('캐릭터 스프라이트 경로는 webp 확장자를 사용합니다', () => {
@@ -10,6 +15,7 @@ describe('getCharacterImagePath', () => {
     expect(getCharacterImagePath(2, 'working', 1)).toBe('/characters/character2/working_1.webp')
     expect(getCharacterImagePath(3, 'home', 2)).toBe('/characters/character3/home_2.webp')
     expect(getCharacterImagePath(4, 'break', 1)).toBe('/characters/character4/break_1.webp')
+    expect(getCharacterImagePath(8, 'normal')).toBe('/characters/character8/normal.webp')
   })
 })
 
@@ -37,5 +43,14 @@ describe('getCharacterSpritePaths', () => {
       '/characters/character2/break_1.webp',
       '/characters/character2/break_2.webp',
     ])
+  })
+})
+
+describe('character presentation helpers', () => {
+  it('새로 추가한 캐릭터도 색상과 이모지를 가집니다', () => {
+    expect(getCharacterEmoji(5)).toBeDefined()
+    expect(getCharacterEmoji(8)).toBeDefined()
+    expect(getCharacterColor(5)).toMatch(/^#/)
+    expect(getCharacterColor(8)).toMatch(/^#/)
   })
 })

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { CharacterType } from '@/types/database'
 import Image from 'next/image'
 import { getCharacterImagePath } from '@/lib/character-utils'
+import { AVAILABLE_CHARACTER_TYPES } from '@/lib/character-catalog'
 
 export default function CharacterSelectPage() {
   const [selectedCharacter, setSelectedCharacter] = useState<CharacterType | null>(null)
@@ -101,7 +102,7 @@ export default function CharacterSelectPage() {
     }
   }
 
-  const appearanceOptions: CharacterType[] = [1, 2, 3, 4]
+  const appearanceOptions: CharacterType[] = AVAILABLE_CHARACTER_TYPES
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -120,7 +121,7 @@ export default function CharacterSelectPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {appearanceOptions.map((appearanceType) => (
           <button
             key={appearanceType}
@@ -143,6 +144,9 @@ export default function CharacterSelectPage() {
                 />
               </div>
             </div>
+            <p className="mt-3 text-sm font-medium text-gray-700">
+              캐릭터 {appearanceType}
+            </p>
             {selectedCharacter === appearanceType && (
               <div className="absolute top-2 right-2">
                 <div className="bg-blue-500 text-white rounded-full p-1">
