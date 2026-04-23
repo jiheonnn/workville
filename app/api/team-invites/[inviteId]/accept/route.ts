@@ -53,11 +53,11 @@ export async function POST(
       .select('*')
       .eq('team_id', invite.team_id)
       .eq('user_id', userId)
-      .eq('status', 'active')
       .single()
 
+    const now = new Date().toISOString()
+
     if (!existingMembership) {
-      const now = new Date().toISOString()
       const { error: membershipInsertError } = await supabase
         .from('team_members')
         .insert({
@@ -73,28 +73,41 @@ export async function POST(
       if (membershipInsertError) {
         return NextResponse.json({ error: '팀 합류 처리에 실패했습니다.' }, { status: 500 })
       }
+    } else if (existingMembership.status !== 'active') {
+      const { error: membershipUpdateError } = await supabase
+        .from('team_members')
+        .update({
+          role: 'member',
+          status: 'active',
+          joined_at: now,
+        })
+        .eq('id', existingMembership.id)
 
-      const { data: existingStatus } = await supabase
+      if (membershipUpdateError) {
+        return NextResponse.json({ error: '팀 합류 처리에 실패했습니다.' }, { status: 500 })
+      }
+    }
+
+    const { data: existingStatus } = await supabase
+      .from('user_status')
+      .select('id')
+      .eq('team_id', invite.team_id)
+      .eq('user_id', userId)
+      .single()
+
+    if (!existingStatus) {
+      const { error: statusInsertError } = await supabase
         .from('user_status')
-        .select('id')
-        .eq('team_id', invite.team_id)
-        .eq('user_id', userId)
-        .single()
+        .insert({
+          id: crypto.randomUUID(),
+          team_id: invite.team_id,
+          user_id: userId,
+          status: 'home',
+          last_updated: now,
+        })
 
-      if (!existingStatus) {
-        const { error: statusInsertError } = await supabase
-          .from('user_status')
-          .insert({
-            id: crypto.randomUUID(),
-            team_id: invite.team_id,
-            user_id: userId,
-            status: 'home',
-            last_updated: now,
-          })
-
-        if (statusInsertError) {
-          return NextResponse.json({ error: '초기 팀 상태 생성에 실패했습니다.' }, { status: 500 })
-        }
+      if (statusInsertError) {
+        return NextResponse.json({ error: '초기 팀 상태 생성에 실패했습니다.' }, { status: 500 })
       }
     }
 

@@ -86,4 +86,67 @@ describe('PUT /api/teams/active', () => {
     expect(response.status).toBe(409)
     expect(supabase.getRows('profiles')[0].active_team_id).toBe('team-1')
   })
+
+  it('다른 팀에 열린 세션이 있어도 현재 활성 팀에 열린 세션이 없으면 전환을 허용합니다', async () => {
+    const supabase = new MockSupabaseClient({
+      tables: {
+        profiles: [
+          {
+            id: 'user-1',
+            email: 'user-1@example.com',
+            username: '지헌',
+            character_type: 1,
+            level: 1,
+            total_work_hours: 0,
+            active_team_id: 'team-1',
+            created_at: '2026-04-23T00:00:00.000Z',
+          },
+        ],
+        team_members: [
+          {
+            id: 'membership-1',
+            team_id: 'team-1',
+            user_id: 'user-1',
+            role: 'owner',
+            status: 'active',
+            joined_at: '2026-04-23T00:00:00.000Z',
+            created_at: '2026-04-23T00:00:00.000Z',
+          },
+          {
+            id: 'membership-2',
+            team_id: 'team-2',
+            user_id: 'user-1',
+            role: 'member',
+            status: 'active',
+            joined_at: '2026-04-23T00:00:00.000Z',
+            created_at: '2026-04-23T00:00:00.000Z',
+          },
+        ],
+        work_sessions: [
+          {
+            id: 'session-1',
+            team_id: 'team-2',
+            user_id: 'user-1',
+            check_in_time: '2026-04-23T00:00:00.000Z',
+            check_out_time: null,
+            duration_minutes: null,
+            break_minutes: 0,
+            last_break_start: null,
+            date: '2026-04-23',
+            created_at: '2026-04-23T00:00:00.000Z',
+          },
+        ],
+      },
+    })
+    createApiClientMock.mockResolvedValue(supabase)
+
+    const response = await PUT(
+      createRequest({
+        teamId: 'team-2',
+      }) as any
+    )
+
+    expect(response.status).toBe(200)
+    expect(supabase.getRows('profiles')[0].active_team_id).toBe('team-2')
+  })
 })

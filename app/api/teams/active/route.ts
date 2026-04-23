@@ -24,7 +24,7 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const supabase = await createApiClient()
-    const { userId } = await requireAuthenticatedProfile(supabase)
+    const { userId, profile } = await requireAuthenticatedProfile(supabase)
     const body = await request.json()
     const teamId = typeof body.teamId === 'string' ? body.teamId : ''
 
@@ -34,14 +34,21 @@ export async function PUT(request: Request) {
 
     await requireActiveMembership(supabase, teamId, userId)
 
-    const { data: openSession } = await supabase
-      .from('work_sessions')
-      .select('*')
-      .eq('user_id', userId)
-      .is('check_out_time', null)
-      .order('check_in_time', { ascending: false })
-      .limit(1)
-      .single()
+    let openSession = null
+
+    if (profile.active_team_id) {
+      const { data: activeTeamOpenSession } = await supabase
+        .from('work_sessions')
+        .select('*')
+        .eq('team_id', profile.active_team_id)
+        .eq('user_id', userId)
+        .is('check_out_time', null)
+        .order('check_in_time', { ascending: false })
+        .limit(1)
+        .single()
+
+      openSession = activeTeamOpenSession
+    }
 
     if (shouldBlockTeamSwitch(openSession)) {
       return NextResponse.json(
