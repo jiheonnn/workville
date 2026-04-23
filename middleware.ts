@@ -3,9 +3,6 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  // 화이트리스트: 승인된 이메일만 접근 가능
-  const ALLOWED_EMAILS = process.env.ALLOWED_EMAILS?.split(',') || ['petebaek07@gmail.com']
-  
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -40,17 +37,6 @@ export async function middleware(request: NextRequest) {
   console.log('Middleware - User:', user?.id)
   console.log('Middleware - Auth Error:', authError)
   
-  // 화이트리스트 체크: 로그인한 사용자가 승인된 이메일인지 확인
-  if (user && !ALLOWED_EMAILS.includes(user.email || '')) {
-    console.log('Access denied for email:', user.email)
-    return new NextResponse('Service Temporarily Unavailable. Please try again later.', { 
-      status: 503,
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8'
-      }
-    })
-  }
-
   // 보호된 라우트 체크
   if (
     !user &&
