@@ -116,13 +116,18 @@ export default function LoginPage() {
           <h1
             className="mt-5 text-4xl font-semibold leading-tight text-slate-950 sm:text-[2.8rem]"
           >
-            워크빌
+            Workville
           </h1>
-          <p className="mt-3 text-sm text-slate-500">
+          <p className="mt-3 text-base font-medium leading-7 text-slate-700">
+            일하는 순간을 더 재밌게,
+            <br />
+            업무와 기록이 이어지는 공간
+          </p>
+          <p className="mt-4 text-xs font-medium tracking-[0.04em] text-slate-400">
             계정이 없으신가요?{' '}
             <Link
               href="/signup"
-              className="font-semibold text-slate-900 underline decoration-slate-300 underline-offset-4 transition hover:decoration-slate-900"
+              className="font-semibold text-slate-600 underline decoration-slate-300 underline-offset-4 transition hover:text-slate-900 hover:decoration-slate-900"
             >
               회원가입
             </Link>
