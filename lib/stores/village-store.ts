@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { UserStatus } from '@/lib/types'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { logVillageDebug } from '@/lib/village/debug'
+import { resolveVillageCurrentUserId } from '@/lib/village/current-user'
 import {
   ApiVillageUser,
   applyVillageUserStatus,
@@ -12,6 +14,8 @@ interface WorkSession {
   check_in_time: string | null
   check_out_time: string | null
   duration_minutes: number | null
+  break_minutes?: number | null
+  last_break_start?: string | null
 }
 
 interface VillageStoreData {
@@ -24,6 +28,7 @@ interface VillageStoreData {
 interface VillageStore {
   // State
   users: VillageUser[]
+  currentUserId: string | null
   currentUserStatus: UserStatus
   todaySessions: WorkSession[]
   totalDurationMinutes: number
@@ -33,6 +38,7 @@ interface VillageStore {
 
   // Actions
   setUsers: (users: VillageUser[]) => void
+  setCurrentUserId: (userId: string | null) => void
   updateUserStatus: (userId: string, status: UserStatus) => void
   setCurrentUserStatus: (status: UserStatus) => void
   setTodaySessions: (sessions: WorkSession[]) => void
@@ -45,12 +51,13 @@ interface VillageStore {
   // API Actions
   fetchVillageUsers: () => Promise<void>
   fetchCurrentStatus: () => Promise<void>
-  updateMyStatus: (status: UserStatus) => Promise<boolean>
+  updateMyStatus: (status: UserStatus, traceId?: string) => Promise<boolean>
 }
 
 export const useVillageStore = create<VillageStore>((set, get) => ({
   // Initial state
   users: [],
+  currentUserId: null,
   currentUserStatus: 'home',
   todaySessions: [],
   totalDurationMinutes: 0,
@@ -60,6 +67,7 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
 
   // Basic setters
   setUsers: (users) => set({ users }),
+  setCurrentUserId: (userId) => set({ currentUserId: userId }),
 
   updateUserStatus: (userId, status) => {
     set((state) => {
@@ -89,6 +97,7 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
 
   fetchVillageUsers: async () => {
     try {
+      logVillageDebug('VillageStore: fetchVillageUsers start')
       const response = await fetch('/api/users', {
         cache: 'no-store',
       })
@@ -98,12 +107,20 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
       }
 
       const { users } = await response.json() as { users?: ApiVillageUser[] }
+      const normalizedUsers = normalizeVillageUsers(users || [])
+
       set({
-        users: normalizeVillageUsers(users || []),
+        users: normalizedUsers,
+      })
+      logVillageDebug('VillageStore: fetchVillageUsers success', {
+        count: normalizedUsers.length,
       })
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Unknown error',
+      })
+      logVillageDebug('VillageStore: fetchVillageUsers error', {
+        message: error instanceof Error ? error.message : 'Unknown error',
       })
     }
   },
@@ -120,10 +137,15 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
 
       const data = await response.json()
       set({
+        currentUserId: data.userId ?? null,
         currentUserStatus: data.status,
         todaySessions: data.todaySessions || [],
         totalDurationMinutes: data.totalDurationMinutes || 0,
         isLoading: false
+      })
+      logVillageDebug('VillageStore: fetchCurrentStatus success', {
+        currentUserId: data.userId ?? null,
+        currentUserStatus: data.status,
       })
     } catch (error) {
       set({ 
@@ -134,12 +156,21 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
   },
 
   // Update current user status with Optimistic UI
-  updateMyStatus: async (status: UserStatus) => {
+  updateMyStatus: async (status: UserStatus, traceId?: string) => {
     console.log('village-store: updateMyStatus called with:', status)
     
     // Store previous state for rollback
     const previousStatus = get().currentUserStatus
-    const currentUserId = useAuthStore.getState().user?.id
+    const currentUserId = resolveVillageCurrentUserId({
+      villageStoreUserId: get().currentUserId,
+      authStoreUserId: useAuthStore.getState().user?.id ?? null,
+    })
+    logVillageDebug('VillageStore: updateMyStatus start', {
+      traceId,
+      currentUserId,
+      previousStatus,
+      nextStatus: status,
+    })
     
     // Optimistic update - immediately update UI
     set((state) => ({
@@ -149,9 +180,20 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
       error: null,
     }))
     console.log('village-store: Optimistic update applied:', status)
+    logVillageDebug('VillageStore: optimistic update applied', {
+      traceId,
+      currentUserId,
+      nextStatus: status,
+      updatedUsers: currentUserId ? get().users.length : 0,
+      missingCurrentUserId: !currentUserId,
+    })
 
     try {
       console.log('village-store: Making API request to /api/status')
+      logVillageDebug('VillageStore: api request start', {
+        traceId,
+        nextStatus: status,
+      })
       const response = await fetch('/api/status', {
         method: 'POST',
         headers: {
@@ -161,6 +203,10 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
       })
 
       console.log('village-store: API response status:', response.status)
+      logVillageDebug('VillageStore: api response received', {
+        traceId,
+        statusCode: response.status,
+      })
       
       if (!response.ok) {
         const errorData = await response.json()
@@ -172,12 +218,23 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
           users: currentUserId ? applyVillageUserStatus(state.users, currentUserId, previousStatus) : state.users,
           error: errorData.error || 'Failed to update status'
         }))
+        logVillageDebug('VillageStore: rollback after api error', {
+          traceId,
+          previousStatus,
+          nextStatus: status,
+          error: errorData.error || 'Failed to update status',
+        })
         
         return false
       }
 
       const data = await response.json()
       console.log('village-store: API response data:', data)
+      logVillageDebug('VillageStore: api response parsed', {
+        traceId,
+        previousStatus: data.previousStatus,
+        nextStatus: status,
+      })
       
       // If checking out, fetch updated session data after a delay
       // This runs in background without blocking UI
@@ -200,6 +257,12 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
         users: currentUserId ? applyVillageUserStatus(state.users, currentUserId, previousStatus) : state.users,
         error: error instanceof Error ? error.message : 'Unknown error'
       }))
+      logVillageDebug('VillageStore: rollback after network error', {
+        traceId,
+        previousStatus,
+        nextStatus: status,
+        message: error instanceof Error ? error.message : 'Unknown error',
+      })
       
       return false
     }

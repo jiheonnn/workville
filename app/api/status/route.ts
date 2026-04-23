@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createApiClient } from '@/lib/supabase/api-client'
 import { UserStatus } from '@/lib/types'
 import { getTodayKorea } from '@/lib/utils/date'
+import { buildWorkLogContent } from '@/lib/work-log/content'
 import { sendSlackNotification, sendWorkSummaryNotification } from '@/lib/slack/notifications'
 import { nanoid } from 'nanoid'
 
@@ -284,7 +285,11 @@ export async function POST(request: NextRequest) {
                     // 이유:
                     // 전날 미완료 할 일을 이월해 새 업무일지를 만들 때도,
                     // 현재 작성 화면에 없는 ROI 문단이 자동으로 생기지 않게 맞춥니다.
-                    content: `## ✈️ 오늘 할 일\n${uncompletedTodos.map((t: any) => `- [ ] ${t.text}`).join('\n')}\n\n## ✅ 완료한 일\n\n## ✅ 자가 피드백\n`
+                    content: buildWorkLogContent({
+                      todos: uncompletedTodos,
+                      completed_todos: [],
+                      feedback: '',
+                    })
                   })
 
                 if (createLogError) {
@@ -446,6 +451,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
+      userId: user.id,
       status: userStatus?.status || 'home',
       lastUpdated: userStatus?.last_updated,
       todaySessions,

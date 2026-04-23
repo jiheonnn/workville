@@ -16,72 +16,46 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const requestedDate = searchParams.get('date')
     
-    // Parallel fetch: session data and work logs
-    const [sessionResult, logsResult] = await Promise.allSettled([
-      // Get active session and last session
-      Promise.all([
-        supabase
-          .from('work_sessions')
-          .select('*')
-          .eq('user_id', user.id)
-          .is('check_out_time', null)
-          .order('check_in_time', { ascending: false })
-          .limit(1)
-          .single(),
-        supabase
-          .from('work_sessions')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('check_in_time', { ascending: false })
-          .limit(1)
-          .single()
-      ]),
-      // Get work log for the date
+    const [{ data: activeSession }, { data: lastSession }] = await Promise.all([
       supabase
-        .from('work_logs')
+        .from('work_sessions')
         .select('*')
         .eq('user_id', user.id)
-        .eq('date', requestedDate || getTodayKorea())
-        .order('updated_at', { ascending: false })
-        .order('created_at', { ascending: false })
+        .is('check_out_time', null)
+        .order('check_in_time', { ascending: false })
         .limit(1)
+        .single(),
+      supabase
+        .from('work_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('check_in_time', { ascending: false })
+        .limit(1)
+        .single(),
     ])
 
-    // Process session results
-    let activeSession = null
-    let lastSession = null
-    let sessionDate = null
-    
-    if (sessionResult.status === 'fulfilled') {
-      const [activeResult, lastResult] = sessionResult.value
-      activeSession = activeResult.data
-      lastSession = lastResult.data
-      
-      // Determine the date to use based on session
-      if (activeSession) {
-        // Active session - use check-in date
-        const checkInDate = new Date(activeSession.check_in_time)
-        sessionDate = `${checkInDate.getFullYear()}-${String(checkInDate.getMonth() + 1).padStart(2, '0')}-${String(checkInDate.getDate()).padStart(2, '0')}`
-      } else if (lastSession) {
-        // No active session but has last session
-        const lastCheckInDate = new Date(lastSession.check_in_time)
-        sessionDate = `${lastCheckInDate.getFullYear()}-${String(lastCheckInDate.getMonth() + 1).padStart(2, '0')}-${String(lastCheckInDate.getDate()).padStart(2, '0')}`
-      }
-    }
+    // 이유:
+    // 업무일지와 근무 세션은 이미 KST 기준 date 컬럼을 함께 저장합니다.
+    // check_in_time을 다시 서버 시간대로 계산하면 자정 경계에서 다른 날짜를 볼 수 있으므로,
+    // 읽기 기준도 date 컬럼 하나로 통일합니다.
+    const sessionDate = activeSession?.date || lastSession?.date || null
+    const targetDate = requestedDate || sessionDate || getTodayKorea()
 
-    // Process work log results
-    let workLog = null
-    if (logsResult.status === 'fulfilled') {
-      const logs = logsResult.value.data
-      if (logs && logs.length > 0) {
-        workLog = logs[0]
-      }
-    }
+    const { data: logs } = await supabase
+      .from('work_logs')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('date', targetDate)
+      .order('updated_at', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    let workLog = logs && logs.length > 0 ? logs[0] : null
 
     // If no work log exists, return empty structure
     if (!workLog) {
       workLog = {
-        date: requestedDate || sessionDate || getTodayKorea(),
+        date: targetDate,
         todos: [],
         completed_todos: [],
         roi_high: '',

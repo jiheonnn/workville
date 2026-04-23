@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { CharacterType, UserStatus } from '@/lib/types'
 import { getCharacterImagePath, getCharacterSpritePaths } from '@/lib/character-utils'
+import { logVillageDebug } from '@/lib/village/debug'
 
 interface CharacterProps {
   characterType: CharacterType
@@ -31,6 +32,16 @@ export default function Character({ characterType, status, position, username }:
     setFailedImageKey(imageKey)
   }, [imageKey])
 
+  const handleImageLoad = useCallback((frame: 1 | 2) => {
+    logVillageDebug('Character: sprite loaded', {
+      username,
+      status,
+      frame,
+      x: position.x,
+      y: position.y,
+    })
+  }, [position.x, position.y, status, username])
+
   useEffect(() => {
     // 이유:
     // 상태 버튼을 누를 때마다 새 스프라이트를 네트워크/디코드로 기다리면
@@ -41,6 +52,16 @@ export default function Character({ characterType, status, position, username }:
       image.src = path
     })
   }, [characterType])
+
+  useEffect(() => {
+    logVillageDebug('Character: props applied', {
+      username,
+      status,
+      x: position.x,
+      y: position.y,
+      imageKey,
+    })
+  }, [imageKey, position.x, position.y, status, username])
 
   return (
     <div
@@ -71,6 +92,7 @@ export default function Character({ characterType, status, position, username }:
                 imageRendering: 'pixelated',
               }}
               loading="eager"
+              onLoad={() => handleImageLoad(1)}
               onError={handleImageError}
             />
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -84,6 +106,7 @@ export default function Character({ characterType, status, position, username }:
                 imageRendering: 'pixelated',
               }}
               loading="eager"
+              onLoad={() => handleImageLoad(2)}
               onError={handleImageError}
             />
           </>

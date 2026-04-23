@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
 import { getTodayKorea } from '@/lib/utils/date'
+import { buildWorkLogContent } from '@/lib/work-log/content'
 
 export interface TodoItem {
   id: string
@@ -19,6 +20,7 @@ export interface WorkLog {
   roi_low: string
   tomorrow_priority: string
   feedback: string
+  version?: number
   created_at?: string
   updated_at?: string
 }
@@ -26,11 +28,15 @@ export interface WorkLog {
 interface WorkLogStore {
   currentLog: WorkLog | null
   isLoading: boolean
+  isSaving: boolean
+  hasConflict: boolean
   error: string | null
   lastSavedAt: Date | null
   isDirty: boolean
   checkInDate: string | null // 출근 날짜 저장
   lastSessionDate: string | null // 마지막 세션 날짜 저장
+  localRevision: number
+  activeSaveRequestId: number
 
   // Actions
   loadTodayLog: (checkInDate?: string) => Promise<void>
@@ -75,16 +81,35 @@ const workLogStorage = createJSONStorage(() =>
   typeof window !== 'undefined' ? window.localStorage : noopStorage
 )
 
+const normalizeWorkLog = (workLog: Partial<WorkLog>): WorkLog => ({
+  date: workLog.date || getToday(),
+  todos: Array.isArray(workLog.todos) ? workLog.todos : [],
+  completed_todos: Array.isArray(workLog.completed_todos) ? workLog.completed_todos : [],
+  roi_high: workLog.roi_high || '',
+  roi_low: workLog.roi_low || '',
+  tomorrow_priority: workLog.tomorrow_priority || '',
+  feedback: workLog.feedback || '',
+  id: workLog.id,
+  user_id: workLog.user_id,
+  version: workLog.version,
+  created_at: workLog.created_at,
+  updated_at: workLog.updated_at,
+})
+
 export const useWorkLogStore = create<WorkLogStore>()(
   persist(
     (set, get) => ({
       currentLog: null,
       isLoading: false,
+      isSaving: false,
+      hasConflict: false,
       error: null,
       lastSavedAt: null,
       isDirty: false,
       checkInDate: null,
       lastSessionDate: null,
+      localRevision: 0,
+      activeSaveRequestId: 0,
 
       fetchLastSessionDate: async () => {
         try {
@@ -101,7 +126,7 @@ export const useWorkLogStore = create<WorkLogStore>()(
       },
 
       loadTodayLog: async (checkInDate?: string | null) => {
-        set({ isLoading: true, error: null })
+        set({ isLoading: true, error: null, hasConflict: false })
         
         try {
           // Use the new unified endpoint
@@ -123,27 +148,11 @@ export const useWorkLogStore = create<WorkLogStore>()(
           
           // Update work log
           if (workLog) {
-            if (workLog.id) {
-              // Existing log from DB
-              set({ 
-                currentLog: {
-                  ...workLog,
-                  todos: workLog.todos || [],
-                  completed_todos: workLog.completed_todos || [],
-                  roi_high: workLog.roi_high || '',
-                  roi_low: workLog.roi_low || '',
-                  tomorrow_priority: workLog.tomorrow_priority || '',
-                  feedback: workLog.feedback || ''
-                },
-                isDirty: false 
-              })
-            } else {
-              // New empty log structure returned from API
-              set({
-                currentLog: workLog,
-                isDirty: false
-              })
-            }
+            set({
+              currentLog: normalizeWorkLog(workLog),
+              isDirty: false,
+              localRevision: 0,
+            })
           } else {
             // Fallback: create new log
             get().createNewLog(targetDate)
@@ -162,17 +171,24 @@ export const useWorkLogStore = create<WorkLogStore>()(
         // If no date provided, use checkInDate, lastSessionDate, or today
         const targetDate = date || get().checkInDate || get().lastSessionDate || getToday()
         const newLog = createEmptyLog(targetDate)
-        set({ currentLog: newLog, isDirty: false })
+        set({
+          currentLog: newLog,
+          isDirty: false,
+          hasConflict: false,
+          error: null,
+          localRevision: 0,
+        })
       },
 
       updateField: (field, value) => {
         const { currentLog } = get()
         if (!currentLog) return
 
-        set({
+        set((state) => ({
           currentLog: { ...currentLog, [field]: value },
-          isDirty: true
-        })
+          isDirty: true,
+          localRevision: state.localRevision + 1,
+        }))
       },
 
       addTodo: (text) => {
@@ -186,13 +202,14 @@ export const useWorkLogStore = create<WorkLogStore>()(
           order: currentLog.todos.length
         }
 
-        set({
+        set((state) => ({
           currentLog: {
             ...currentLog,
             todos: [...currentLog.todos, newTodo]
           },
-          isDirty: true
-        })
+          isDirty: true,
+          localRevision: state.localRevision + 1,
+        }))
       },
 
       toggleTodo: (id) => {
@@ -216,14 +233,15 @@ export const useWorkLogStore = create<WorkLogStore>()(
         const { currentLog } = get()
         if (!currentLog) return
 
-        set({
+        set((state) => ({
           currentLog: {
             ...currentLog,
             todos: currentLog.todos.filter(t => t.id !== id),
             completed_todos: currentLog.completed_todos.filter(t => t.id !== id)
           },
-          isDirty: true
-        })
+          isDirty: true,
+          localRevision: state.localRevision + 1,
+        }))
       },
 
       moveTodoToCompleted: (id) => {
@@ -233,14 +251,15 @@ export const useWorkLogStore = create<WorkLogStore>()(
         const todo = currentLog.todos.find(t => t.id === id)
         if (!todo) return
 
-        set({
+        set((state) => ({
           currentLog: {
             ...currentLog,
             todos: currentLog.todos.filter(t => t.id !== id),
             completed_todos: [...currentLog.completed_todos, { ...todo, completed: true }]
           },
-          isDirty: true
-        })
+          isDirty: true,
+          localRevision: state.localRevision + 1,
+        }))
       },
 
       moveCompletedToTodo: (id) => {
@@ -250,21 +269,22 @@ export const useWorkLogStore = create<WorkLogStore>()(
         const completedTodo = currentLog.completed_todos.find(t => t.id === id)
         if (!completedTodo) return
 
-        set({
+        set((state) => ({
           currentLog: {
             ...currentLog,
             completed_todos: currentLog.completed_todos.filter(t => t.id !== id),
             todos: [...currentLog.todos, { ...completedTodo, completed: false }]
           },
-          isDirty: true
-        })
+          isDirty: true,
+          localRevision: state.localRevision + 1,
+        }))
       },
 
       updateTodoText: (id, text) => {
         const { currentLog } = get()
         if (!currentLog) return
 
-        set({
+        set((state) => ({
           currentLog: {
             ...currentLog,
             todos: currentLog.todos.map(t => 
@@ -274,8 +294,9 @@ export const useWorkLogStore = create<WorkLogStore>()(
               t.id === id ? { ...t, text } : t
             )
           },
-          isDirty: true
-        })
+          isDirty: true,
+          localRevision: state.localRevision + 1,
+        }))
       },
 
       saveToLocalStorage: () => {
@@ -291,59 +312,101 @@ export const useWorkLogStore = create<WorkLogStore>()(
       },
 
       saveToDB: async () => {
-        const { currentLog } = get()
-        if (!currentLog || !get().isDirty) return
+        const { currentLog, isDirty, isSaving, hasConflict, localRevision, activeSaveRequestId } = get()
+        if (!currentLog || !isDirty || isSaving || hasConflict) return
 
-        set({ isLoading: true, error: null })
+        const saveRequestId = activeSaveRequestId + 1
+        const snapshotLog = currentLog
+        const snapshotRevision = localRevision
+
+        set({
+          isSaving: true,
+          error: null,
+          activeSaveRequestId: saveRequestId,
+        })
 
         try {
-          const method = currentLog.id ? 'PATCH' : 'POST'
-          const url = currentLog.id 
-            ? `/api/work-logs/${currentLog.id}`
-            : '/api/work-logs'
-
-          const response = await fetch(url, {
-            method,
+          const response = await fetch('/api/work-logs', {
+            method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              date: currentLog.date,
-              todos: currentLog.todos,
-              completed_todos: currentLog.completed_todos,
-              roi_high: currentLog.roi_high,
-              roi_low: currentLog.roi_low,
-              tomorrow_priority: currentLog.tomorrow_priority,
-              feedback: currentLog.feedback,
+              date: snapshotLog.date,
+              baseVersion: snapshotLog.version,
+              todos: snapshotLog.todos,
+              completed_todos: snapshotLog.completed_todos,
+              roi_high: snapshotLog.roi_high,
+              roi_low: snapshotLog.roi_low,
+              tomorrow_priority: snapshotLog.tomorrow_priority,
+              feedback: snapshotLog.feedback,
               // 이유:
               // 업무일지 작성 흐름에서는 ROI 자가 진단 섹션을 더 이상 노출하지 않습니다.
               // 저장 본문도 현재 UI와 동일한 구조로 유지해야, 숨겨진 문단이 다시 생기지 않습니다.
-              content: `## ✈️ 오늘 할 일\n${currentLog.todos.map(t => `- [${t.completed ? 'x' : ' '}] ${t.text}`).join('\n')}\n\n## ✅ 완료한 일\n${currentLog.completed_todos.map(t => `- [x] ${t.text}`).join('\n')}\n\n## ✅ 자가 피드백\n${currentLog.feedback}`
+              content: buildWorkLogContent({
+                todos: snapshotLog.todos,
+                completed_todos: snapshotLog.completed_todos,
+                feedback: snapshotLog.feedback,
+              }),
             }),
           })
 
+          const result = await response.json().catch(() => null)
+
           if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.error || 'Failed to save work log')
+            if (response.status === 409) {
+              if (get().activeSaveRequestId !== saveRequestId) {
+                return
+              }
+
+              set({
+                error: result?.error || '다른 곳에서 먼저 수정되었습니다.',
+                hasConflict: true,
+                isSaving: false,
+              })
+              return
+            }
+
+            throw new Error(result?.error || 'Failed to save work log')
           }
 
-          const result = await response.json()
-          
-          // Update with the returned ID if it's a new log
-          if (!currentLog.id && result.id) {
-            set({
-              currentLog: { ...currentLog, id: result.id },
-              isDirty: false,
-              lastSavedAt: new Date()
-            })
-          } else {
-            set({ isDirty: false, lastSavedAt: new Date() })
+          if (get().activeSaveRequestId !== saveRequestId) {
+            return
           }
+
+          const latestState = get()
+          const latestLog = latestState.currentLog
+          if (!latestLog) return
+
+          const savedLog = result?.log || {}
+          const hasNewLocalChanges = latestState.localRevision !== snapshotRevision
+
+          set({
+            currentLog: {
+              ...latestLog,
+              id: savedLog.id ?? latestLog.id,
+              user_id: savedLog.user_id ?? latestLog.user_id,
+              version: savedLog.version ?? latestLog.version,
+              created_at: savedLog.created_at ?? latestLog.created_at,
+              updated_at: savedLog.updated_at ?? latestLog.updated_at,
+            },
+            isDirty: hasNewLocalChanges,
+            isSaving: false,
+            hasConflict: false,
+            error: null,
+            lastSavedAt: new Date(),
+          })
         } catch (error) {
           console.error('Error saving work log:', error)
-          set({ error: error instanceof Error ? error.message : 'Failed to save work log' })
+          set({
+            error: error instanceof Error ? error.message : 'Failed to save work log',
+            isSaving: false,
+          })
         } finally {
-          set({ isLoading: false })
+          const latestState = get()
+          if (latestState.activeSaveRequestId === saveRequestId && latestState.isSaving) {
+            set({ isSaving: false })
+          }
         }
       },
 
@@ -363,7 +426,7 @@ export const useWorkLogStore = create<WorkLogStore>()(
         // currentLog should be loaded fresh based on checkInDate or lastSessionDate
         lastSavedAt: state.lastSavedAt,
         checkInDate: state.checkInDate,
-        lastSessionDate: state.lastSessionDate
+        lastSessionDate: state.lastSessionDate,
       })
     }
   )

@@ -7,6 +7,7 @@ import GridCell from './GridCell'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimePresence } from '@/hooks/useRealtimePresence'
 import { useVillageStore } from '@/lib/stores/village-store'
+import { logVillageDebug } from '@/lib/village/debug'
 import { buildVillageCharacters } from '@/lib/village/map-data'
 
 const SPECIAL_CELLS = {
@@ -28,6 +29,18 @@ export default function VillageMap() {
   useRealtimePresence()
 
   const characters = useMemo(() => buildVillageCharacters(users), [users])
+
+  useEffect(() => {
+    logVillageDebug('VillageMap: characters recalculated', {
+      count: characters.length,
+      statuses: characters.map((character) => ({
+        id: character.id,
+        status: character.status,
+        x: character.position.x,
+        y: character.position.y,
+      })),
+    })
+  }, [characters])
 
   // Calculate working and home users
   const workingCount = characters.filter(char => char.status === 'working' || char.status === 'break').length
@@ -58,6 +71,7 @@ export default function VillageMap() {
           // 이유:
           // 내 상태는 store에서 즉시 반영하지만, 다른 팀원 변경은 Realtime 이벤트로 다시 동기화합니다.
           // 두 경로가 같은 store 액션을 쓰도록 맞춰야 화면 기준 데이터가 한 군데로 유지됩니다.
+          logVillageDebug('VillageMap: realtime user_status event')
           void fetchVillageUsers()
         }
       )

@@ -11,7 +11,7 @@ const FeedbackSection = lazy(() => import('./FeedbackSection'))
 
 export default function WorkLogEditor() {
   const { currentLog, isLoading, error, loadTodayLog, clearError, checkInDate } = useWorkLogStore()
-  const { isSaving, lastSavedAt, isDirty } = useAutoSave()
+  const { isSaving, lastSavedAt, isDirty, hasConflict } = useAutoSave()
 
   // Optimized single useEffect for initial load and checkInDate changes
   useEffect(() => {
@@ -71,7 +71,9 @@ export default function WorkLogEditor() {
         </h2>
         
         <div className="flex items-center gap-2 text-sm">
-          {isSaving ? (
+          {hasConflict ? (
+            <span className="text-red-600">• 충돌 해결 필요</span>
+          ) : isSaving ? (
             <span className="text-blue-600 flex items-center gap-1">
               <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
               저장 중...

@@ -76,6 +76,7 @@ export interface WorkLog {
   user_id: string;
   date: string;
   content: string;
+  version: number;
   created_at: string;
   updated_at: string;
   todos: TodoItem[];
