@@ -1,91 +1,92 @@
 'use client'
 
-import { useMemo } from 'react'
-
-interface MemberStats {
-  member: {
-    id: string
-    username: string
-    characterType: string
-    level: number
-  }
-  dailyStats: Array<{
-    date: string
-    hours: number
-    dayOfWeek: string
-    checkIn: string | null
-    checkOut: string | null
-  }>
-  summary: {
-    totalHours: number
-    averageHours: number
-    workDays: number
-    period: string
-    earliestCheckIn: string | null
-    latestCheckOut: string | null
-    mostProductiveDay: string | null
-  }
-  weeklyPattern: Array<{
-    week: string
-    hours: number
-  }>
-}
+import type { MemberStatsDetail } from '@/lib/stats/calculations'
+import { getCharacterColor, getCharacterLabel } from '@/lib/character-utils'
 
 interface MemberStatsViewProps {
-  stats: MemberStats
+  stats: MemberStatsDetail
   formatDate: (date: string) => string
-  getCharacterColor: (characterType: string) => string
+  variant: 'me' | 'member'
 }
 
-export default function MemberStatsView({ stats, formatDate, getCharacterColor }: MemberStatsViewProps) {
+function formatRecordTime(timeStr: string | null) {
+  if (!timeStr) {
+    return '-'
+  }
+
+  const date = new Date(timeStr)
+  const hours = date.getHours()
+  const minutes = date.getMinutes()
+  const period = hours < 12 ? '오전' : '오후'
+  const hour12 = hours % 12 || 12
+
+  return `${period} ${String(hour12).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+}
+
+export default function MemberStatsView({
+  stats,
+  formatDate,
+  variant,
+}: MemberStatsViewProps) {
   const maxDailyHours = Math.max(...stats.dailyStats.map(d => d.hours), 1)
   const maxWeeklyHours = Math.max(...stats.weeklyPattern.map(w => w.hours), 1)
-
-  const dayOfWeekAverage = useMemo(() => {
-    const dayMap: Record<string, { total: number, count: number }> = {}
-    stats.dailyStats.forEach(day => {
-      if (!dayMap[day.dayOfWeek]) {
-        dayMap[day.dayOfWeek] = { total: 0, count: 0 }
-      }
-      dayMap[day.dayOfWeek].total += day.hours
-      dayMap[day.dayOfWeek].count += 1
-    })
-
-    const days = ['월', '화', '수', '목', '금', '토', '일']
-    return days.map(day => ({
-      day,
-      averageHours: dayMap[day] ? Math.round((dayMap[day].total / dayMap[day].count) * 10) / 10 : 0
-    }))
-  }, [stats.dailyStats])
-
-  const formatTime = (timeStr: string | null) => {
-    if (!timeStr) return '-'
-    return timeStr
-  }
+  const isPersonalView = variant === 'me'
 
   return (
     <div className="space-y-6">
-      {/* Member Info Card */}
-      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-6 border border-emerald-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-2xl font-bold text-gray-800 mb-2">{stats.member.username}</h3>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">레벨 {stats.member.level}</span>
-              <span 
-                className="px-3 py-1 rounded-full text-xs font-medium text-white"
-                style={{ backgroundColor: getCharacterColor(stats.member.characterType) }}
-              >
-                {stats.member.characterType}
-              </span>
+      {isPersonalView ? (
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-200">
+          <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-emerald-700 mb-2">내 통계</p>
+              <h3 className="text-2xl font-bold text-gray-800">{stats.member.username}</h3>
             </div>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-600 mb-1">분석 기간</p>
-            <p className="text-sm font-medium text-gray-800">{stats.summary.period}</p>
+
+            {stats.level && (
+              <div className="w-full xl:max-w-md">
+                <h4 className="text-sm font-semibold text-gray-700">현재 레벨</h4>
+                <p className="text-3xl font-black bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent mt-2">
+                  Lv.{stats.level.current}
+                </p>
+                <div className="mt-4">
+                  <div className="w-full bg-white rounded-full h-4 overflow-hidden">
+                    <div
+                      className="bg-amber-400 h-4 rounded-full transition-all duration-500"
+                      style={{ width: `${stats.level.progress}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between mt-2 text-sm text-gray-600">
+                    <span>누적 {stats.level.totalWorkHours}시간</span>
+                    <span>다음 레벨까지 {stats.level.hoursToNext}시간</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-6 border border-emerald-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-emerald-700 mb-2">선택한 팀원 통계</p>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">{stats.member.username}</h3>
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-600">레벨 {stats.member.level}</span>
+                <span 
+                  className="px-3 py-1 rounded-full text-xs font-medium text-white"
+                  style={{ backgroundColor: getCharacterColor(stats.member.characterType) }}
+                >
+                  {getCharacterLabel(stats.member.characterType)}
+                </span>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-gray-600 mb-1">분석 기간</p>
+              <p className="text-sm font-medium text-gray-800">{stats.summary.period}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -114,11 +115,15 @@ export default function MemberStatsView({ stats, formatDate, getCharacterColor }
           <div className="space-y-3">
             <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
               <span className="text-sm text-gray-600">가장 이른 출근</span>
-              <span className="font-semibold text-blue-600">{formatTime(stats.summary.earliestCheckIn)}</span>
+              <span className="font-semibold text-blue-600">
+                {stats.summary.earliestCheckIn || '-'}
+              </span>
             </div>
             <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
               <span className="text-sm text-gray-600">가장 늦은 퇴근</span>
-              <span className="font-semibold text-purple-600">{formatTime(stats.summary.latestCheckOut)}</span>
+              <span className="font-semibold text-purple-600">
+                {stats.summary.latestCheckOut || '-'}
+              </span>
             </div>
           </div>
         </div>
@@ -127,7 +132,7 @@ export default function MemberStatsView({ stats, formatDate, getCharacterColor }
         <div className="bg-white rounded-xl p-6 border-2 border-gray-100">
           <h4 className="text-sm font-semibold text-gray-700 mb-4">요일별 평균 근무시간</h4>
           <div className="space-y-2">
-            {dayOfWeekAverage.map((day) => (
+            {stats.dayPattern.map((day) => (
               <div key={day.day} className="flex items-center gap-3">
                 <span className="text-sm text-gray-600 w-8">{day.day}</span>
                 <div className="flex-1 bg-gray-100 rounded-full h-6 relative overflow-hidden">
@@ -213,16 +218,10 @@ export default function MemberStatsView({ stats, formatDate, getCharacterColor }
                   <td className="py-2 px-3 text-sm text-gray-800">{day.date}</td>
                   <td className="py-2 px-3 text-sm text-gray-600">{day.dayOfWeek}</td>
                   <td className="py-2 px-3 text-sm text-gray-600">
-                    {day.checkIn ? new Date(day.checkIn).toLocaleTimeString('ko-KR', { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
-                    }) : '-'}
+                    {formatRecordTime(day.checkIn)}
                   </td>
                   <td className="py-2 px-3 text-sm text-gray-600">
-                    {day.checkOut ? new Date(day.checkOut).toLocaleTimeString('ko-KR', { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
-                    }) : '-'}
+                    {formatRecordTime(day.checkOut)}
                   </td>
                   <td className="py-2 px-3 text-sm font-medium text-right text-emerald-600">
                     {day.hours}h

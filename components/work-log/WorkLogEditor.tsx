@@ -7,7 +7,6 @@ import { getTodayKorea } from '@/lib/utils/date'
 
 // Lazy load heavy components for better initial load performance
 const TodoSection = lazy(() => import('./TodoSection'))
-const ROISection = lazy(() => import('./ROISection'))
 const FeedbackSection = lazy(() => import('./FeedbackSection'))
 
 export default function WorkLogEditor() {
@@ -111,26 +110,12 @@ export default function WorkLogEditor() {
       }>
         <TodoSection />
       </Suspense>
-      
-      <Suspense fallback={
-        <div className="animate-pulse h-48 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-2xl" />
-      }>
-        <ROISection />
-      </Suspense>
-      
+
       <Suspense fallback={
         <div className="animate-pulse h-48 bg-gradient-to-r from-purple-50 to-purple-100 rounded-2xl" />
       }>
         <FeedbackSection />
       </Suspense>
-
-      {/* 안내 메시지 */}
-      <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
-        <p className="text-sm text-blue-800">
-          💡 모든 변경사항은 자동으로 저장됩니다. 
-          로컬 저장소에 1초마다, 서버에는 5초마다 자동 저장됩니다.
-        </p>
-      </div>
     </div>
   )
 }

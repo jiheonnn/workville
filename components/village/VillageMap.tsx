@@ -1,32 +1,13 @@
 'use client'
 
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import Character from './Character'
 import GridCell from './GridCell'
-import { UserStatus, CharacterType, numberToCharacterType } from '@/lib/types'
 import { createClient } from '@/lib/supabase/client'
 import { useRealtimePresence } from '@/hooks/useRealtimePresence'
 import { useVillageStore } from '@/lib/stores/village-store'
-
-interface CharacterData {
-  id: string
-  username: string
-  characterType: CharacterType
-  status: UserStatus
-  position: { x: number; y: number }
-}
-
-interface ApiUserStatus {
-  status: UserStatus
-}
-
-interface ApiUser {
-  id: string
-  username: string | null
-  character_type: number | null
-  user_status?: ApiUserStatus[] | ApiUserStatus | null
-}
+import { buildVillageCharacters } from '@/lib/village/map-data'
 
 const SPECIAL_CELLS = {
   houses: [
@@ -39,42 +20,14 @@ const SPECIAL_CELLS = {
   breakArea: { x: 5, y: 6, type: 'break' },
 } as const
 
-function getUserStatus(user: ApiUser): UserStatus {
-  if (!user.user_status) {
-    return 'home'
-  }
-
-  if (Array.isArray(user.user_status) && user.user_status.length > 0) {
-    return user.user_status[0].status
-  }
-
-  if (typeof user.user_status === 'object' && 'status' in user.user_status) {
-    return user.user_status.status
-  }
-
-  return 'home'
-}
-
 export default function VillageMap() {
-  const [characters, setCharacters] = useState<CharacterData[]>([])
   const channelRef = useRef<RealtimeChannel | null>(null)
-  const { currentUserStatus } = useVillageStore()
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const { users, fetchVillageUsers } = useVillageStore()
   
   // Initialize presence tracking
   useRealtimePresence()
-  
-  // Get current user ID on mount
-  useEffect(() => {
-    const getCurrentUser = async () => {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setCurrentUserId(user.id)
-      }
-    }
-    getCurrentUser()
-  }, [])
+
+  const characters = useMemo(() => buildVillageCharacters(users), [users])
 
   // Calculate working and home users
   const workingCount = characters.filter(char => char.status === 'working' || char.status === 'break').length
@@ -84,100 +37,12 @@ export default function VillageMap() {
   const gridCols = 9
   const gridRows = 7
 
-  // Position mapping based on status
-  const getPositionForStatus = useCallback((status: UserStatus, characterIndex: number): { x: number; y: number } => {
-    switch (status) {
-      case 'working':
-        // Office positions (center area)
-        const officePositions = [
-          { x: 4, y: 4 },
-          { x: 5, y: 4 },
-          { x: 6, y: 4 },
-          { x: 5, y: 3 },
-        ]
-        return officePositions[characterIndex % officePositions.length]
-      
-      case 'home':
-        // House positions (top row)
-        const housePositions = SPECIAL_CELLS.houses.map(h => ({ x: h.x, y: h.y }))
-        return housePositions[characterIndex % housePositions.length]
-      
-      case 'break':
-        // Break area positions (bottom)
-        const breakPositions = [
-          { x: 4, y: 6 },
-          { x: 5, y: 6 },
-          { x: 6, y: 6 },
-          { x: 5, y: 7 },
-        ]
-        return breakPositions[characterIndex % breakPositions.length]
-      
-      default:
-        return { x: 5, y: 4 } // Default to office
-    }
-  }, [])
-
   // Set up realtime subscription and initial fetch
   useEffect(() => {
     const supabase = createClient()
-    // Define fetchUsers inside useEffect to avoid React 19 concurrent rendering issues
-    const fetchUsers = async () => {
-      console.log('fetchUsers called - Starting...')
-      
-      try {
-        // Use API route instead of direct Supabase query to avoid client-side issues
-        const response = await fetch('/api/users')
-        
-        if (!response.ok) {
-          console.error('Failed to fetch users:', response.statusText)
-          return
-        }
-
-        const { users } = await response.json() as { users?: ApiUser[] }
-        console.log('Fetched users data:', users)
-        
-        if (users) {
-          // First, filter valid users
-          const validUsers = users.filter((user) => user.character_type !== null)
-          
-          // Group users by status to assign positions correctly
-          const usersByStatus: Record<UserStatus, typeof validUsers> = {
-            working: [],
-            home: [],
-            break: []
-          }
-          
-          validUsers.forEach((user) => {
-            const status = getUserStatus(user)
-            usersByStatus[status].push(user)
-          })
-          
-          // Map users with correct position indices
-          const characterData: CharacterData[] = validUsers.map((user) => {
-            const status = getUserStatus(user)
-            // Find the index of this user within their status group
-            const statusIndex = usersByStatus[status].findIndex((candidate) => candidate.id === user.id)
-            const position = getPositionForStatus(status, statusIndex)
-            
-            return {
-              id: user.id,
-              username: user.username || 'Anonymous',
-              characterType: numberToCharacterType(user.character_type as 1 | 2 | 3 | 4),
-              status: status,
-              position: position,
-            }
-          })
-          
-          console.log('Setting characters:', characterData)
-          setCharacters(characterData)
-        }
-      } catch (error) {
-        console.error('Unexpected error in fetchUsers:', error)
-      }
-    }
 
     // Initial fetch
-    fetchUsers()
+    void fetchVillageUsers()
 
     // Set up realtime subscription
     const channel = supabase
@@ -190,8 +55,10 @@ export default function VillageMap() {
           table: 'user_status',
         },
         () => {
-          // Refetch users when status changes
-          fetchUsers()
+          // 이유:
+          // 내 상태는 store에서 즉시 반영하지만, 다른 팀원 변경은 Realtime 이벤트로 다시 동기화합니다.
+          // 두 경로가 같은 store 액션을 쓰도록 맞춰야 화면 기준 데이터가 한 군데로 유지됩니다.
+          void fetchVillageUsers()
         }
       )
       .subscribe()
@@ -204,29 +71,7 @@ export default function VillageMap() {
         supabase.removeChannel(channelRef.current)
       }
     }
-  }, [getPositionForStatus])
-
-  const displayedCharacters = useMemo(() => {
-    if (!currentUserId || !currentUserStatus) {
-      return characters
-    }
-
-    return characters.map((character) => {
-      if (character.id !== currentUserId) {
-        return character
-      }
-
-      const usersWithNewStatus = characters.filter(
-        (candidate) => candidate.id === currentUserId || candidate.status === currentUserStatus
-      ).length - 1
-
-      return {
-        ...character,
-        status: currentUserStatus,
-        position: getPositionForStatus(currentUserStatus, usersWithNewStatus),
-      }
-    })
-  }, [characters, currentUserId, currentUserStatus, getPositionForStatus])
+  }, [fetchVillageUsers])
 
   // Show loading state while auth is loading - removed this check
   // The component should still work even if auth is loading
@@ -288,7 +133,7 @@ export default function VillageMap() {
               {/* Character layer */}
               <div className="absolute inset-0 grid grid-cols-9 grid-rows-7 gap-1.5 p-6" style={{ zIndex: 9999 }}>
                 {/* Render characters */}
-                {displayedCharacters.map((character) => {
+                {characters.map((character) => {
                   // Consider users as online if they are working or on break
                   return (
                     <Character

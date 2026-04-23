@@ -1,184 +1,158 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import PersonalStatsView from '@/components/stats/PersonalStatsView'
-import TeamStatsView from '@/components/stats/TeamStatsView'
+
+import LeaderboardView from '@/components/stats/LeaderboardView'
 import MemberStatsView from '@/components/stats/MemberStatsView'
-
-type Period = 'week' | 'month' | 'quarter' | 'custom'
-
-interface PersonalStats {
-  dailyStats: Array<{
-    date: string
-    hours: number
-    dayOfWeek: string
-  }>
-  summary: {
-    totalHours: number
-    averageHours: number
-    workDays: number
-    period: string
-  }
-  level: {
-    current: number
-    totalWorkHours: number
-    hoursToNext: number
-    progress: number
-  }
-  dayPattern: Array<{
-    day: string
-    averageHours: number
-  }>
-}
-
-interface TeamStats {
-  members: Array<{
-    id: string
-    username: string
-    characterType: string
-    level: number
-    totalHours: number
-    averageHours: number
-    workDays: number
-  }>
-  summary: {
-    totalMembers: number
-    totalHours: number
-    averageHoursPerMember: number
-    period: string
-  }
-  dailyActivity: Array<{
-    date: string
-    hours: number
-    activeMembers: number
-  }>
-}
-
-interface MemberStats {
-  member: {
-    id: string
-    username: string
-    characterType: string
-    level: number
-  }
-  dailyStats: Array<{
-    date: string
-    hours: number
-    dayOfWeek: string
-    checkIn: string | null
-    checkOut: string | null
-  }>
-  summary: {
-    totalHours: number
-    averageHours: number
-    workDays: number
-    period: string
-    earliestCheckIn: string | null
-    latestCheckOut: string | null
-    mostProductiveDay: string | null
-  }
-  weeklyPattern: Array<{
-    week: string
-    hours: number
-  }>
-}
+import type {
+  LeaderboardStats,
+  MemberStatsDetail,
+  StatsPeriod,
+} from '@/lib/stats/calculations'
 
 export default function StatsPage() {
-  const [activeTab, setActiveTab] = useState<'personal' | 'team' | 'member'>('personal')
-  const [period, setPeriod] = useState<Period>('week')
-  const [personalStats, setPersonalStats] = useState<PersonalStats | null>(null)
-  const [teamStats, setTeamStats] = useState<TeamStats | null>(null)
-  const [memberStats, setMemberStats] = useState<MemberStats | null>(null)
+  const [activeTab, setActiveTab] = useState<'personal' | 'ranking'>('personal')
+  const [period, setPeriod] = useState<StatsPeriod>('week')
+  const [personalStats, setPersonalStats] = useState<MemberStatsDetail | null>(null)
+  const [leaderboardStats, setLeaderboardStats] = useState<LeaderboardStats | null>(null)
+  const [memberStats, setMemberStats] = useState<MemberStatsDetail | null>(null)
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
-  const [teamMembers, setTeamMembers] = useState<Array<{id: string, username: string, characterType: string}>>([])
-  const [loading, setLoading] = useState(true)
+  const [loadingPersonal, setLoadingPersonal] = useState(true)
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false)
+  const [loadingMemberStats, setLoadingMemberStats] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [customStartDate, setCustomStartDate] = useState<string>('')
   const [customEndDate, setCustomEndDate] = useState<string>('')
 
-  const fetchTeamMembers = useCallback(async () => {
-    try {
-      const response = await fetch('/api/team/members')
-      if (!response.ok) throw new Error('Failed to fetch team members')
-      const data = await response.json()
-      setTeamMembers(data.members || [])
-      if (data.members && data.members.length > 0) {
-        setSelectedMemberId(data.members[0].id)
-      }
-    } catch (err) {
-      console.error('Error fetching team members:', err)
-    }
-  }, [])
+  const buildQueryString = useCallback(() => {
+    const params = new URLSearchParams({ period })
 
-  const fetchStats = useCallback(async () => {
+    if (period === 'custom' && customStartDate && customEndDate) {
+      params.set('startDate', customStartDate)
+      params.set('endDate', customEndDate)
+    }
+
+    return params.toString()
+  }, [customEndDate, customStartDate, period])
+
+  const fetchPersonalStats = useCallback(async () => {
     try {
-      setLoading(true)
+      setLoadingPersonal(true)
       setError(null)
 
-      let url = ''
-      if (activeTab === 'personal') {
-        url = `/api/stats/personal?period=${period}`
-      } else if (activeTab === 'team') {
-        url = `/api/stats/team?period=${period}`
-      } else if (activeTab === 'member' && selectedMemberId) {
-        url = `/api/stats/member?userId=${selectedMemberId}&period=${period}`
-      }
+      const response = await fetch(`/api/stats/personal?${buildQueryString()}`)
+      if (!response.ok) throw new Error('Failed to fetch personal stats')
 
-      // Add custom date range if period is custom
-      if (period === 'custom' && customStartDate && customEndDate) {
-        url += `&startDate=${customStartDate}&endDate=${customEndDate}`
-      }
-
-      const response = await fetch(url)
-      if (!response.ok) throw new Error('Failed to fetch stats')
-      const data = await response.json()
-      
-      if (activeTab === 'personal') {
-        setPersonalStats(data)
-      } else if (activeTab === 'team') {
-        setTeamStats(data)
-      } else if (activeTab === 'member') {
-        setMemberStats(data)
-      }
+      const data = (await response.json()) as MemberStatsDetail
+      setPersonalStats(data)
     } catch (err) {
-      setError('통계를 불러오는데 실패했습니다.')
-      console.error('Error fetching stats:', err)
+      setError('내 통계를 불러오는데 실패했습니다.')
+      console.error('Error fetching personal stats:', err)
     } finally {
-      setLoading(false)
+      setLoadingPersonal(false)
     }
-  }, [activeTab, period, customEndDate, customStartDate, selectedMemberId])
+  }, [buildQueryString])
 
-  useEffect(() => {
-    void fetchTeamMembers()
-  }, [fetchTeamMembers])
+  const fetchLeaderboard = useCallback(async () => {
+    try {
+      setLoadingLeaderboard(true)
+      setError(null)
+
+      const response = await fetch(`/api/stats/team?${buildQueryString()}`)
+      if (!response.ok) throw new Error('Failed to fetch leaderboard')
+
+      const data = (await response.json()) as LeaderboardStats
+      setLeaderboardStats(data)
+
+      setSelectedMemberId((currentSelectedMemberId) => {
+        const memberIds = data.members.map((member) => member.id)
+
+        if (currentSelectedMemberId && memberIds.includes(currentSelectedMemberId)) {
+          return currentSelectedMemberId
+        }
+
+        return null
+      })
+    } catch (err) {
+      setError('리더보드를 불러오는데 실패했습니다.')
+      console.error('Error fetching leaderboard:', err)
+    } finally {
+      setLoadingLeaderboard(false)
+    }
+  }, [buildQueryString])
+
+  const fetchMemberStats = useCallback(async (memberId: string) => {
+    try {
+      setLoadingMemberStats(true)
+      setError(null)
+
+      const response = await fetch(`/api/stats/member?userId=${memberId}&${buildQueryString()}`)
+      if (!response.ok) throw new Error('Failed to fetch member stats')
+
+      const data = (await response.json()) as MemberStatsDetail
+      setMemberStats(data)
+    } catch (err) {
+      setError('선택한 팀원 통계를 불러오는데 실패했습니다.')
+      console.error('Error fetching member stats:', err)
+    } finally {
+      setLoadingMemberStats(false)
+    }
+  }, [buildQueryString])
 
   useEffect(() => {
     if (period === 'custom' && (!customStartDate || !customEndDate)) {
       return
     }
-    if (activeTab === 'member' && !selectedMemberId) {
+
+    if (activeTab === 'personal') {
+      void fetchPersonalStats()
+    }
+  }, [activeTab, customEndDate, customStartDate, fetchPersonalStats, period])
+
+  useEffect(() => {
+    if (period === 'custom' && (!customStartDate || !customEndDate)) {
       return
     }
-    void fetchStats()
-  }, [activeTab, period, customStartDate, customEndDate, selectedMemberId, fetchStats])
+
+    if (activeTab === 'ranking') {
+      void fetchLeaderboard()
+    }
+  }, [activeTab, buildQueryString, customEndDate, customStartDate, fetchLeaderboard, period])
+
+  useEffect(() => {
+    if (period === 'custom' && (!customStartDate || !customEndDate)) {
+      return
+    }
+
+    if (activeTab === 'ranking' && selectedMemberId) {
+      void fetchMemberStats(selectedMemberId)
+    }
+  }, [
+    activeTab,
+    customEndDate,
+    customStartDate,
+    fetchMemberStats,
+    period,
+    selectedMemberId,
+  ])
+
+  useEffect(() => {
+    if (activeTab === 'ranking' && !selectedMemberId) {
+      setMemberStats(null)
+    }
+  }, [activeTab, selectedMemberId])
 
   const formatDate = useCallback((dateString: string) => {
     const date = new Date(dateString)
     return `${date.getMonth() + 1}/${date.getDate()}`
   }, [])
 
+  const isLoading =
+    activeTab === 'personal'
+      ? loadingPersonal
+      : loadingLeaderboard || loadingMemberStats
 
-  const getCharacterColor = (characterType: string) => {
-    const colors: Record<string, string> = {
-      character1: '#EF4444',
-      character2: '#3B82F6',
-      character3: '#10B981',
-      character4: '#8B5CF6'
-    }
-    return colors[characterType] || '#6B7280'
-  }
-
-  if (loading) {
+  if (isLoading && activeTab === 'personal' && !personalStats) {
     return (
       <div className="p-6">
         <h2 className="text-3xl font-black bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-6">통계</h2>
@@ -207,24 +181,14 @@ export default function StatsPage() {
             👤 내 통계
           </button>
           <button
-            onClick={() => setActiveTab('team')}
+            onClick={() => setActiveTab('ranking')}
             className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-              activeTab === 'team'
+              activeTab === 'ranking'
                 ? 'bg-gradient-to-r from-emerald-600 to-green-600 text-white shadow-lg shadow-emerald-600/25 scale-105'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            👥 팀 통계
-          </button>
-          <button
-            onClick={() => setActiveTab('member')}
-            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-              activeTab === 'member'
-                ? 'bg-gradient-to-r from-emerald-600 to-green-600 text-white shadow-lg shadow-emerald-600/25 scale-105'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            📊 팀원별 통계
+            🏆 랭킹
           </button>
 
           <div className="ml-auto flex gap-2">
@@ -301,41 +265,42 @@ export default function StatsPage() {
           </div>
         )}
 
-        {/* Personal Stats */}
-        {activeTab === 'personal' && personalStats && (
-          <PersonalStatsView stats={personalStats} formatDate={formatDate} />
+        {isLoading && activeTab === 'ranking' && !leaderboardStats && (
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
+          </div>
         )}
 
-        {/* Team Stats */}
-          {activeTab === 'team' && teamStats && (
-            <TeamStatsView stats={teamStats} formatDate={formatDate} />
-          )}
+        {activeTab === 'personal' && personalStats && (
+          <MemberStatsView stats={personalStats} formatDate={formatDate} variant="me" />
+        )}
 
-        {/* Member Stats */}
-        {activeTab === 'member' && (
-          <div className="animate-fadeIn">
-            {/* Member Selection */}
-            <div className="mb-6 p-4 bg-gray-50 rounded-xl">
-              <label className="block text-sm font-medium text-gray-700 mb-2">팀원 선택</label>
-              <select
-                value={selectedMemberId || ''}
-                onChange={(e) => setSelectedMemberId(e.target.value)}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-800"
-              >
-                {teamMembers.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.username}
-                  </option>
-                ))}
-              </select>
-            </div>
+        {activeTab === 'ranking' && leaderboardStats && (
+          <div className="space-y-6 animate-fadeIn">
+            <LeaderboardView
+              selectedMemberId={selectedMemberId}
+              stats={leaderboardStats}
+              onSelectMember={(memberId) => {
+                setSelectedMemberId((currentSelectedMemberId) =>
+                  currentSelectedMemberId === memberId ? null : memberId
+                )
+              }}
+            />
 
             {memberStats && (
-              <MemberStatsView 
-                stats={memberStats} 
-                formatDate={formatDate} 
-                getCharacterColor={getCharacterColor}
+              <MemberStatsView
+                stats={memberStats}
+                formatDate={formatDate}
+                variant={
+                  memberStats.member.id === leaderboardStats.currentUserId ? 'me' : 'member'
+                }
               />
+            )}
+
+            {!memberStats && (
+              <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-10 text-center">
+                <p className="text-lg font-semibold text-gray-700">팀원을 선택하면 상세 통계가 펼쳐집니다.</p>
+              </div>
             )}
           </div>
         )}

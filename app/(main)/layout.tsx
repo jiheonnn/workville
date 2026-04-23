@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { getCharacterImagePath } from '@/lib/character-utils'
 
 export default function MainLayout({
   children,
@@ -147,7 +148,7 @@ export default function MainLayout({
                   <div className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-100 to-green-100">
                     <div className="w-8 h-8 rounded-full overflow-hidden relative">
                       <Image 
-                        src={`/characters/character${user.character_type}/normal.png`}
+                        src={getCharacterImagePath(user.character_type, 'normal')}
                         alt={user.username}
                         fill
                         sizes="32px"
@@ -185,7 +186,7 @@ export default function MainLayout({
               <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-100 to-green-100">
                 <div className="w-6 h-6 rounded-full overflow-hidden relative">
                   <Image 
-                    src={`/characters/character${user.character_type}/normal.png`}
+                    src={getCharacterImagePath(user.character_type, 'normal')}
                     alt={user.username}
                     fill
                     sizes="24px"

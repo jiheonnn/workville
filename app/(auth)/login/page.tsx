@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -9,12 +9,39 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    const authError = searchParams.get('error')
+
+    if (authError === 'email_not_confirmed') {
+      setError('이메일 인증이 아직 완료되지 않았습니다. 받은 편지함의 인증 링크를 클릭한 뒤 다시 로그인해주세요.')
+      setNotice(null)
+      return
+    }
+
+    if (authError === 'email_confirmation_failed') {
+      setError('이메일 인증 링크가 만료되었거나 올바르지 않습니다. 다시 회원가입하거나 새 인증 메일을 받아주세요.')
+      setNotice(null)
+      return
+    }
+
+    if (searchParams.get('confirmed') === '1') {
+      setNotice('이메일 인증이 완료되었습니다. 이제 로그인하거나 계속 진행하실 수 있습니다.')
+      setError(null)
+      return
+    }
+
+    setNotice(null)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setNotice(null)
     setLoading(true)
 
     try {
@@ -25,7 +52,11 @@ export default function LoginPage() {
       })
 
       if (error) {
-        setError(error.message)
+        if (error.message === 'Email not confirmed') {
+          setError('이메일 인증이 아직 완료되지 않았습니다. 받은 편지함의 인증 링크를 클릭한 뒤 다시 로그인해주세요.')
+        } else {
+          setError(error.message)
+        }
       } else {
         // Use window.location to force a full page reload for proper cookie sync
         window.location.href = '/village'
@@ -82,6 +113,11 @@ export default function LoginPage() {
         </p>
       </div>
       <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        {notice && (
+          <div className="rounded-md bg-blue-50 p-4">
+            <p className="text-sm text-blue-800">{notice}</p>
+          </div>
+        )}
         {error && (
           <div className="rounded-md bg-red-50 p-4">
             <p className="text-sm text-red-800">{error}</p>

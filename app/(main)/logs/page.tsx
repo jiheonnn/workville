@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import { CharacterType } from '@/lib/types'
+import { getCharacterEmoji, getCharacterImagePath } from '@/lib/character-utils'
 import CalendarView from '@/components/work-log/CalendarView'
 import WorkLogDisplay from '@/components/work-log/WorkLogDisplay'
 
 interface Profile {
   id: string
   username: string
-  character_type: CharacterType
+  character_type: CharacterType | null
 }
 
 interface WorkSession {
@@ -167,16 +168,6 @@ export default function LogsPage() {
     ))
   }
 
-  const getCharacterEmoji = (characterType: CharacterType) => {
-    const emojis: Record<CharacterType, string> = {
-      character1: '🔴',
-      character2: '🔵',
-      character3: '🟢',
-      character4: '🟣'
-    }
-    return emojis[characterType] || '⚪'
-  }
-
   if (loading && logs.length === 0) {
     return (
       <div className="p-6">
@@ -319,7 +310,7 @@ export default function LogsPage() {
                           <div className="flex items-start justify-between mb-4">
                             <div className="flex items-center gap-3">
                               <div className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden relative">
-                                <Image src={`/characters/${log.profiles.character_type}/working_1.png`} alt={log.profiles.username} fill className="object-cover" />
+                                <Image src={getCharacterImagePath(log.profiles.character_type, 'working', 1)} alt={log.profiles.username} fill className="object-cover" />
                               </div>
                               <div>
                                 <h3 className="font-bold text-lg text-gray-800">{log.profiles.username}</h3>
@@ -365,7 +356,7 @@ export default function LogsPage() {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden relative">
-                        <Image src={`/characters/${log.profiles.character_type}/working_1.png`} alt={log.profiles.username} fill className="object-cover" />
+                        <Image src={getCharacterImagePath(log.profiles.character_type, 'working', 1)} alt={log.profiles.username} fill className="object-cover" />
                       </div>
                       <div>
                         <h3 className="font-bold text-lg text-gray-800">{log.profiles.username}</h3>

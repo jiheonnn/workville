@@ -315,7 +315,10 @@ export const useWorkLogStore = create<WorkLogStore>()(
               roi_low: currentLog.roi_low,
               tomorrow_priority: currentLog.tomorrow_priority,
               feedback: currentLog.feedback,
-              content: `## ✈️ 오늘 할 일\n${currentLog.todos.map(t => `- [${t.completed ? 'x' : ' '}] ${t.text}`).join('\n')}\n\n## ✅ 완료한 일\n${currentLog.completed_todos.map(t => `- [x] ${t.text}`).join('\n')}\n\n## 💡 ROI 자가 진단\n\n1. 오늘 한 일 중 가장 **ROI 높은 일**은?\n→ ${currentLog.roi_high}\n\n2. 오늘 한 일 중 가장 **ROI 낮은 일**은?\n→ ${currentLog.roi_low}\n\n3. 내일 가장 먼저 할 일 (ROI 기준)\n→ ${currentLog.tomorrow_priority}\n\n## ✅ 자가 피드백\n${currentLog.feedback}`
+              // 이유:
+              // 업무일지 작성 흐름에서는 ROI 자가 진단 섹션을 더 이상 노출하지 않습니다.
+              // 저장 본문도 현재 UI와 동일한 구조로 유지해야, 숨겨진 문단이 다시 생기지 않습니다.
+              content: `## ✈️ 오늘 할 일\n${currentLog.todos.map(t => `- [${t.completed ? 'x' : ' '}] ${t.text}`).join('\n')}\n\n## ✅ 완료한 일\n${currentLog.completed_todos.map(t => `- [x] ${t.text}`).join('\n')}\n\n## ✅ 자가 피드백\n${currentLog.feedback}`
             }),
           })
 

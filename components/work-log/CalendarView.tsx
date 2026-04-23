@@ -5,11 +5,12 @@ import Image from 'next/image'
 import Calendar from 'react-calendar'
 import 'react-calendar/dist/Calendar.css'
 import { CharacterType } from '@/lib/types'
+import { getCharacterImagePath } from '@/lib/character-utils'
 
 interface Profile {
   id: string
   username: string
-  character_type: CharacterType
+  character_type: CharacterType | null
 }
 
 interface WorkLog {
@@ -69,7 +70,7 @@ export default function CalendarView({ logs, onDateSelect, selectedDate }: Calen
         {uniqueUsers.map((log) => (
           <div key={log.user_id} className="relative">
             <Image
-              src={`/characters/${log.profiles.character_type}/normal.png`}
+              src={getCharacterImagePath(log.profiles.character_type, 'normal')}
               alt={log.profiles.username}
               width={28}
               height={28}

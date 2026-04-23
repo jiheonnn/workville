@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import Image from 'next/image'
+import { useState, useCallback, useEffect } from 'react'
 import { CharacterType, UserStatus } from '@/lib/types'
+import { getCharacterImagePath, getCharacterSpritePaths } from '@/lib/character-utils'
 
 interface CharacterProps {
   characterType: CharacterType
@@ -11,28 +11,40 @@ interface CharacterProps {
   username: string
 }
 
+export function getCharacterContainerClassName() {
+  // 이유:
+  // 근무 상태 전환은 버튼 클릭 직후 바로 보이는 것이 핵심이므로,
+  // 위치 변경에는 시간 기반 transition을 주지 않습니다.
+  return 'relative flex flex-col items-center justify-center pointer-events-auto'
+}
+
 export default function Character({ characterType, status, position, username }: CharacterProps) {
   const [failedImageKey, setFailedImageKey] = useState<string | null>(null)
   const imageKey = `${characterType}-${status}`
   const imageError = failedImageKey === imageKey
 
-  // Build the image paths for both animation frames
-  const imagePath1 = characterType 
-    ? `/characters/character${characterType}/${status}_1.png`
-    : `/characters/character1/${status}_1.png` // Default to character1 if null
-  
-  const imagePath2 = characterType 
-    ? `/characters/character${characterType}/${status}_2.png`
-    : `/characters/character1/${status}_2.png` // Default to character1 if null
+  const imagePath1 = getCharacterImagePath(characterType, status, 1)
+  const imagePath2 = getCharacterImagePath(characterType, status, 2)
 
   // Handle image load error
   const handleImageError = useCallback(() => {
     setFailedImageKey(imageKey)
   }, [imageKey])
 
+  useEffect(() => {
+    // 이유:
+    // 상태 버튼을 누를 때마다 새 스프라이트를 네트워크/디코드로 기다리면
+    // 좌표는 바뀌어도 사용자는 "늦게 반응한다"고 느끼게 됩니다.
+    // 현재 캐릭터가 사용할 수 있는 모든 상태 프레임을 먼저 캐시에 올려 즉시 교체되게 합니다.
+    getCharacterSpritePaths(characterType).forEach((path) => {
+      const image = new window.Image()
+      image.src = path
+    })
+  }, [characterType])
+
   return (
     <div
-      className={`relative flex flex-col items-center justify-center transition-all duration-1000 ease-in-out pointer-events-auto`}
+      className={getCharacterContainerClassName()}
       style={{
         gridColumn: position.x,
         gridRow: position.y,
@@ -48,7 +60,8 @@ export default function Character({ characterType, status, position, username }:
       <div className="relative w-20 h-20" style={{ zIndex: 99999 }}>
         {!imageError ? (
           <>
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={imagePath1}
               alt={`${username} - ${status}`}
               width={512}
@@ -57,10 +70,11 @@ export default function Character({ characterType, status, position, username }:
               style={{
                 imageRendering: 'pixelated',
               }}
-              priority
+              loading="eager"
               onError={handleImageError}
             />
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={imagePath2}
               alt={`${username} - ${status}`}
               width={512}
@@ -69,7 +83,7 @@ export default function Character({ characterType, status, position, username }:
               style={{
                 imageRendering: 'pixelated',
               }}
-              priority
+              loading="eager"
               onError={handleImageError}
             />
           </>

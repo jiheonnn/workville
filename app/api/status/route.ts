@@ -281,7 +281,10 @@ export async function POST(request: NextRequest) {
                     roi_low: '',
                     tomorrow_priority: '',
                     feedback: '',
-                    content: `## ✈️ 오늘 할 일\n${uncompletedTodos.map((t: any) => `- [ ] ${t.text}`).join('\n')}\n\n## ✅ 완료한 일\n\n## 💡 ROI 자가 진단\n\n1. 오늘 한 일 중 가장 **ROI 높은 일**은?\n→ \n\n2. 오늘 한 일 중 가장 **ROI 낮은 일**은?\n→ \n\n3. 내일 가장 먼저 할 일 (ROI 기준)\n→ \n\n## ✅ 자가 피드백\n`
+                    // 이유:
+                    // 전날 미완료 할 일을 이월해 새 업무일지를 만들 때도,
+                    // 현재 작성 화면에 없는 ROI 문단이 자동으로 생기지 않게 맞춥니다.
+                    content: `## ✈️ 오늘 할 일\n${uncompletedTodos.map((t: any) => `- [ ] ${t.text}`).join('\n')}\n\n## ✅ 완료한 일\n\n## ✅ 자가 피드백\n`
                   })
 
                 if (createLogError) {
@@ -402,7 +405,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all today's work sessions
-    const today = new Date().toISOString().split('T')[0]
+    // 이유:
+    // work_sessions.date와 work_logs.date는 한국 날짜(YYYY-MM-DD) 기준으로 저장합니다.
+    // 여기서 UTC 날짜를 쓰면 자정 근처에 "오늘 기록" 조회가 하루씩 어긋날 수 있습니다.
+    const today = getTodayKorea()
     const { data: todaySessions } = await supabase
       .from('work_sessions')
       .select('check_in_time, check_out_time, duration_minutes, break_minutes, last_break_start')

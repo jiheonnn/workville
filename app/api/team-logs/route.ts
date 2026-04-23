@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
           username,
           character_type
         )
-      `)
+      `, { count: 'exact' })
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
@@ -118,7 +118,9 @@ export async function GET(request: NextRequest) {
       .select('id, username, character_type')
       .order('username')
 
-    // Transform character_type to string format
+    // 이유:
+    // character_type은 프로젝트 전체에서 숫자(1~4)로 통일합니다.
+    // 이미지 경로는 클라이언트 helper가 조합하도록 두고, API는 DB 원본 타입을 그대로 반환합니다.
     const transformedLogs = logsWithSessions?.map(log => {
       const profile = log.profiles as any
       if (profile && typeof profile === 'object' && !Array.isArray(profile)) {
@@ -127,21 +129,16 @@ export async function GET(request: NextRequest) {
           profiles: {
             id: profile.id,
             username: profile.username,
-            character_type: `character${profile.character_type}`
+            character_type: profile.character_type
           }
         }
       }
       return log
     })
 
-    const transformedUsers = usersData?.map(user => ({
-      ...user,
-      character_type: `character${user.character_type}`
-    }))
-
     return NextResponse.json({ 
       logs: transformedLogs || [],
-      users: transformedUsers || [],
+      users: usersData || [],
       pagination: {
         total: count || 0,
         limit,

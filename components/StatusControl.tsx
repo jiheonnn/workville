@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useVillageStore } from '@/lib/stores/village-store'
 import { UserStatus } from '@/lib/types'
 import WorkLogConfirmModal from '@/components/work-log/WorkLogConfirmModal'
+import { getTodayKorea } from '@/lib/utils/date'
 
 export default function StatusControl() {
   const [showWorkLogModal, setShowWorkLogModal] = useState(false)
@@ -75,7 +76,9 @@ export default function StatusControl() {
         // Run in background without blocking
         (async () => {
           try {
-            const today = new Date().toISOString().split('T')[0]
+            // 이유:
+            // 출근 시 생성하는 업무일지 날짜는 DB/API와 동일하게 한국 날짜 기준이어야 합니다.
+            const today = getTodayKorea()
             
             // Check if there's already an ACTIVE work session (not checked out)
             const sessionResponse = await fetch('/api/work-sessions/today')

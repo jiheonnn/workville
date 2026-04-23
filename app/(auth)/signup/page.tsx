@@ -11,12 +11,14 @@ export default function SignupPage() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setNotice(null)
 
     if (password !== confirmPassword) {
       setError('비밀번호가 일치하지 않습니다.')
@@ -53,22 +55,15 @@ export default function SignupPage() {
         }
       } else {
         console.log('Signup response:', data)
-        
-        // 회원가입 성공 후 바로 로그인 시도
+
+        // 이유:
+        // Supabase hosted 프로젝트는 이메일 확인이 기본으로 켜져 있을 수 있습니다.
+        // 이때 user는 생성되지만 session은 없으므로, 여기서 비밀번호 로그인을 재시도하면
+        // "Email not confirmed" 오류가 나게 됩니다.
         if (data.user && !data.session) {
-          // 이메일 확인이 필요한 경우 바로 로그인 시도
-          const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          })
-          
-          if (loginError) {
-            console.error('Auto login error:', loginError)
-            setError('회원가입은 완료되었지만 자동 로그인에 실패했습니다. 로그인 페이지에서 다시 시도해주세요.')
-          } else if (loginData.session) {
-            router.push('/character-select')
-            router.refresh()
-          }
+          setNotice('회원가입이 완료되었습니다. 이메일로 전송된 인증 링크를 클릭한 뒤 계속 진행해주세요.')
+          setPassword('')
+          setConfirmPassword('')
         } else if (data.session) {
           // 세션이 있으면 바로 character-select로 이동
           router.push('/character-select')
@@ -97,9 +92,14 @@ export default function SignupPage() {
         </p>
       </div>
       <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        {notice && (
+          <div className="rounded-md bg-blue-50 p-4">
+            <p className="text-sm text-blue-800">{notice}</p>
+          </div>
+        )}
         {error && (
-          <div className={`rounded-md p-4 ${error.includes('이메일을 확인하여') ? 'bg-blue-50' : 'bg-red-50'}`}>
-            <p className={`text-sm ${error.includes('이메일을 확인하여') ? 'text-blue-800' : 'text-red-800'}`}>{error}</p>
+          <div className="rounded-md bg-red-50 p-4">
+            <p className="text-sm text-red-800">{error}</p>
           </div>
         )}
         <div className="space-y-4">

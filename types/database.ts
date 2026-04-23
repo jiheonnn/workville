@@ -1,7 +1,15 @@
 export type CharacterType = 1 | 2 | 3 | 4;
 export type UserStatus = 'working' | 'home' | 'break';
 
-// Database type placeholder - replace with generated types from Supabase
+export interface TodoItem {
+  id: string;
+  text: string;
+  completed: boolean;
+  order?: number;
+}
+
+// 앱에서 직접 사용하는 주요 도메인 타입들입니다.
+// Supabase 스키마 변경 시 이 파일과 실제 DB 스키마를 함께 맞춰야 합니다.
 export type Database = {
   public: {
     Tables: {
@@ -50,6 +58,8 @@ export interface WorkSession {
   check_in_time: string;
   check_out_time: string | null;
   duration_minutes: number | null;
+  break_minutes: number;
+  last_break_start: string | null;
   date: string;
   created_at: string;
 }
@@ -67,6 +77,13 @@ export interface WorkLog {
   date: string;
   content: string;
   created_at: string;
+  updated_at: string;
+  todos: TodoItem[];
+  completed_todos: TodoItem[];
+  roi_high: string;
+  roi_low: string;
+  tomorrow_priority: string;
+  feedback: string;
 }
 
 export interface WorkLogTemplate {

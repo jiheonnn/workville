@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useWorkLogStore } from '@/lib/stores/work-log-store'
+import { getTodayKorea } from '@/lib/utils/date'
 
 interface WorkLogConfirmModalProps {
   isOpen: boolean
@@ -52,7 +53,9 @@ export default function WorkLogConfirmModal({ isOpen, onClose, onConfirm }: Work
       
       // If still no date, use today
       if (!targetDate) {
-        targetDate = new Date().toISOString().split('T')[0]
+        // 이유:
+        // 업무일지 확인 모달도 DB가 쓰는 날짜 기준과 같아야 정확한 로그를 찾을 수 있습니다.
+        targetDate = getTodayKorea()
         console.log('No active session found, using today:', targetDate)
       }
       

@@ -19,6 +19,8 @@ CREATE TABLE work_sessions (
   check_in_time TIMESTAMP WITH TIME ZONE NOT NULL,
   check_out_time TIMESTAMP WITH TIME ZONE,
   duration_minutes INTEGER,
+  break_minutes INTEGER NOT NULL DEFAULT 0,
+  last_break_start TIMESTAMP WITH TIME ZONE,
   date DATE NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
 );
@@ -37,7 +39,14 @@ CREATE TABLE work_logs (
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   content TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
+  todos JSONB NOT NULL DEFAULT '[]'::jsonb,
+  completed_todos JSONB NOT NULL DEFAULT '[]'::jsonb,
+  roi_high TEXT NOT NULL DEFAULT '',
+  roi_low TEXT NOT NULL DEFAULT '',
+  tomorrow_priority TEXT NOT NULL DEFAULT '',
+  feedback TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
 );
 
 -- Shared work log template
@@ -100,6 +109,9 @@ CREATE POLICY "Work logs are viewable by everyone" ON work_logs
 CREATE POLICY "Users can create own work logs" ON work_logs
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+CREATE POLICY "Users can update own work logs" ON work_logs
+  FOR UPDATE USING (auth.uid() = user_id);
+
 -- Template: Everyone can read and update
 CREATE POLICY "Template is viewable by everyone" ON work_log_template
   FOR SELECT USING (true);
@@ -127,6 +139,9 @@ $$ language 'plpgsql';
 CREATE TRIGGER update_work_log_template_updated_at BEFORE UPDATE ON work_log_template
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_work_logs_updated_at BEFORE UPDATE ON work_logs
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER update_user_status_updated_at BEFORE UPDATE ON user_status
   FOR EACH ROW EXECUTE FUNCTION update_last_updated_column();
 
@@ -134,17 +149,21 @@ CREATE TRIGGER update_user_status_updated_at BEFORE UPDATE ON user_status
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO profiles (id, email, username)
-  VALUES (NEW.id, NEW.email, NEW.email);
+  INSERT INTO public.profiles (id, email, username)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NULLIF(NEW.raw_user_meta_data ->> 'username', ''), NEW.email)
+  );
   
-  INSERT INTO user_status (user_id)
+  INSERT INTO public.user_status (user_id)
   VALUES (NEW.id);
   
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
 
 -- Trigger for new user creation
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();

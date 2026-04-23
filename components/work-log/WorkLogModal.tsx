@@ -38,21 +38,6 @@ export default function WorkLogModal({ isOpen, onClose, onSubmit }: WorkLogModal
 - 
 - 
 
-💡 ROI 자가 진단
-
-1. 오늘 한 일 중 가장 **ROI 높은 일**은?
-    
-    → 
-    
-2. 오늘 한 일 중 가장 **ROI 낮은 일**은?
-    
-    → 
-    
-3. 내일 가장 먼저 할 일 (ROI 기준)
-    
-    →
-    
-
 ✅ 자가 피드백
 
 - 
