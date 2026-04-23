@@ -14,69 +14,28 @@ export default function MainLayout({
 }: {
   children: React.ReactNode
 }) {
-  const router = useRouter()
   const pathname = usePathname()
-  const { user, setUser, isLoading, setLoading } = useAuthStore()
+  const { user, setUser, setLoading, loadUserFromServer } = useAuthStore()
 
   useEffect(() => {
     const supabase = createClient()
 
-    // Set loading to true at the start
     setLoading(true)
-    
-    const checkUser = async () => {
-      console.log('checkUser started')
-      try {
-        // Use getSession instead of getUser for better reliability
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-        
-        console.log('Session check:', session?.user?.id, sessionError)
-        
-        if (sessionError) {
-          console.error('Session error in checkUser:', sessionError)
-          setLoading(false)
-          return
-        }
-        
-        if (session?.user) {
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single()
-          
-          console.log('Profile fetched:', profile, profileError)
-          
-          if (profileError) {
-            console.error('Profile fetch error:', profileError)
-          } else if (profile) {
-            setUser(profile)
-          }
-        }
-      } catch (error) {
-        console.error('Unexpected error in checkUser:', error)
-      } finally {
-        console.log('checkUser finally - setting loading false')
-        setLoading(false)
-      }
+
+    const syncUser = async () => {
+      // 이유: 헤더 프로필은 브라우저 Supabase 조회 대신 서버 API를 단일 진실 공급원으로 사용해야
+      // 팀/인증 상태와 프로필 표시가 서로 다른 경로에서 어긋나지 않습니다.
+      await loadUserFromServer()
+      setLoading(false)
     }
-    
-    // Initial user check
-    checkUser()
-    
+
+    void syncUser()
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session?.user?.id)
-      
+
       if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-        
-        if (profile) {
-          setUser(profile)
-        }
+        await loadUserFromServer()
       } else {
         setUser(null)
       }
@@ -85,7 +44,7 @@ export default function MainLayout({
     return () => {
       subscription.unsubscribe()
     }
-  }, [setUser, setLoading])
+  }, [loadUserFromServer, setLoading, setUser])
 
   const handleLogout = async () => {
     try {

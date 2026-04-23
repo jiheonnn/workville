@@ -291,7 +291,9 @@ export class MockSupabaseClient {
     }
     this.uniqueInsertRaceKeys = state.uniqueInsertRaceKeys || new Set<string>()
     this.raceInsertRows = state.raceInsertRows || {}
-    const authUserId = state.authUserId ?? 'user-1'
+    // 이유: 테스트에서 `null`을 넘기면 "로그인하지 않은 사용자"를 정확히 흉내 내야 합니다.
+    // `??`를 쓰면 null도 기본값으로 치환되어 인증 테스트가 거짓 양성으로 바뀝니다.
+    const authUserId = state.authUserId === undefined ? 'user-1' : state.authUserId
 
     this.auth = {
       getUser: async () => ({
