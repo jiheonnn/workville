@@ -5,29 +5,28 @@ import type { PendingInvite } from '@/lib/stores/team-store'
 interface PendingInvitesPanelProps {
   invites: PendingInvite[]
   onAccept: (inviteId: string) => Promise<boolean>
+  compact?: boolean
 }
 
 export default function PendingInvitesPanel({
   invites,
   onAccept,
+  compact = false,
 }: PendingInvitesPanelProps) {
   return (
-    <section className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-      <h2 className="text-xl font-bold text-gray-800">받은 초대</h2>
-      <p className="text-sm text-gray-600 mt-2">
-        현재 로그인한 이메일로 온 초대만 표시됩니다.
-      </p>
+    <section className={`bg-white border border-gray-100 ${compact ? 'rounded-3xl p-5 shadow-[0_14px_40px_rgba(15,23,42,0.08)]' : 'rounded-2xl p-6 shadow-lg'}`}>
+      <h2 className={`${compact ? 'text-lg' : 'text-xl'} font-bold text-gray-800`}>받은 초대</h2>
 
       <div className="mt-4 space-y-3">
         {invites.length === 0 ? (
-          <div className="rounded-xl bg-gray-50 px-4 py-6 text-sm text-gray-500">
+          <div className="rounded-2xl bg-gray-50 px-4 py-5 text-sm text-gray-500">
             아직 수락 대기 중인 초대가 없습니다.
           </div>
         ) : (
           invites.map((invite) => (
             <div
               key={invite.id}
-              className="rounded-xl border border-gray-200 px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-3 rounded-2xl border border-gray-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
             >
               <div>
                 <div className="text-sm font-semibold text-gray-800">
@@ -40,7 +39,7 @@ export default function PendingInvitesPanel({
               <button
                 type="button"
                 onClick={() => void onAccept(invite.id)}
-                className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700"
+                className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
               >
                 초대 수락
               </button>

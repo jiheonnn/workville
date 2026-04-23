@@ -6,23 +6,10 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { useTeamStore } from '@/lib/stores/team-store'
 import { useWorkLogStore } from '@/lib/stores/work-log-store'
 
-import InviteMemberDialog from './InviteMemberDialog'
-import PendingInvitesPanel from './PendingInvitesPanel'
-import TeamCreateDialog from './TeamCreateDialog'
-
-interface TeamMemberSummary {
-  id: string
-  username: string
-  character_type: number | null
-  user_status: Array<{ status: string }>
-}
-
-interface TeamInviteSummary {
-  id: string
-  email: string
-  status: string
-  created_at: string
-}
+import TeamDashboardView, {
+  TeamInviteSummary,
+  TeamMemberSummary,
+} from './TeamDashboardView'
 
 async function parseJsonResponse(response: Response) {
   return response.json().catch(() => ({}))
@@ -227,141 +214,21 @@ export default function TeamManagementPanel() {
   }
 
   return (
-    <div className="space-y-6">
-      <TeamCreateDialog onCreate={handleCreateTeam} isLoading={isLoading} />
-
-      <PendingInvitesPanel invites={pendingInvites} onAccept={handleAcceptInvite} />
-
-      <section className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-gray-800">내 팀 목록</h2>
-            <p className="text-sm text-gray-600 mt-2">
-              여러 팀에 소속될 수 있으며, 상단 스위처에서 활성 팀을 바꿀 수 있습니다.
-            </p>
-          </div>
-          {activeTeam && (
-            <div className="text-sm font-semibold text-emerald-700 bg-emerald-50 px-4 py-2 rounded-xl">
-              활성 팀: {activeTeam.name}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {teams.map((team) => (
-            <div key={team.id} className="rounded-xl border border-gray-200 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-gray-800">{team.name}</div>
-                  <div className="text-xs text-gray-500 mt-1">{team.role === 'owner' ? '팀장' : '팀원'}</div>
-                </div>
-                {team.id === activeTeamId && (
-                  <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold">
-                    활성 팀
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-          {teams.length === 0 && (
-            <div className="rounded-xl bg-gray-50 px-4 py-6 text-sm text-gray-500">
-              아직 속한 팀이 없습니다.
-            </div>
-          )}
-        </div>
-      </section>
-
-      {activeTeam && (
-        <>
-          {activeTeam.role === 'owner' && (
-            <>
-              <InviteMemberDialog onInvite={handleInvite} />
-              <section className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-800">보낸 초대</h3>
-                <div className="mt-4 space-y-3">
-                  {activeInvites.length === 0 ? (
-                    <div className="rounded-xl bg-gray-50 px-4 py-6 text-sm text-gray-500">
-                      현재 대기 중인 초대가 없습니다.
-                    </div>
-                  ) : (
-                    activeInvites.map((invite) => (
-                      <div
-                        key={invite.id}
-                        className="rounded-xl border border-gray-200 px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <div>
-                          <div className="font-medium text-gray-800">{invite.email}</div>
-                          <div className="text-xs text-gray-500 mt-1">{invite.status}</div>
-                        </div>
-                        {invite.status === 'pending' && (
-                          <button
-                            type="button"
-                            onClick={() => void handleCancelInvite(invite.id)}
-                            className="px-4 py-2 rounded-xl bg-red-50 text-red-700 text-sm font-semibold hover:bg-red-100"
-                          >
-                            초대 취소
-                          </button>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </section>
-            </>
-          )}
-
-          <section className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-800">현재 팀 멤버</h3>
-              {activeTeam.role !== 'owner' && (
-                <button
-                  type="button"
-                  onClick={() => void handleLeaveTeam()}
-                  className="px-4 py-2 rounded-xl bg-red-50 text-red-700 text-sm font-semibold hover:bg-red-100"
-                >
-                  팀 탈퇴
-                </button>
-              )}
-            </div>
-
-            <div className="mt-4 space-y-3">
-              {members.map((member) => {
-                const isCurrentUser = member.id === user?.id
-                return (
-                  <div
-                    key={member.id}
-                    className="rounded-xl border border-gray-200 px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div>
-                      <div className="font-medium text-gray-800">
-                        {member.username} {isCurrentUser ? '(나)' : ''}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        상태: {member.user_status?.[0]?.status || 'home'}
-                      </div>
-                    </div>
-                    {activeTeam.role === 'owner' && !isCurrentUser && (
-                      <button
-                        type="button"
-                        onClick={() => void handleTransferOwner(member.id)}
-                        className="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200"
-                      >
-                        팀장 위임
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-        </>
-      )}
-
-      {(pageError || error) && (
-        <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-          {pageError || error}
-        </div>
-      )}
-    </div>
+    <TeamDashboardView
+      userId={user?.id ?? null}
+      teams={teams}
+      activeTeamId={activeTeam?.id ?? activeTeamId}
+      pendingInvites={pendingInvites}
+      members={members}
+      activeInvites={activeInvites}
+      pageError={pageError || error}
+      isLoading={isLoading}
+      onCreateTeam={handleCreateTeam}
+      onAcceptInvite={handleAcceptInvite}
+      onInviteMember={handleInvite}
+      onTransferOwner={handleTransferOwner}
+      onLeaveTeam={handleLeaveTeam}
+      onCancelInvite={handleCancelInvite}
+    />
   )
 }

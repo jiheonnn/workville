@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
@@ -45,22 +45,6 @@ export default function MainLayout({
       subscription.unsubscribe()
     }
   }, [loadUserFromServer, setLoading, setUser])
-
-  const handleLogout = async () => {
-    try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.signOut()
-      if (error) {
-        console.error('Logout error:', error)
-      }
-      // Force a full page reload to clear all state and cookies
-      window.location.href = '/login'
-    } catch (error) {
-      console.error('Unexpected logout error:', error)
-      // Even if there's an error, redirect to login
-      window.location.href = '/login'
-    }
-  }
 
   const navItems = [
     { href: '/village', label: '마을', icon: '🏘️' },
@@ -106,7 +90,11 @@ export default function MainLayout({
               <TeamSwitcher />
               {user && (
                 <>
-                  <div className="flex shrink-0 items-center space-x-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-100 to-green-100">
+                  <Link
+                    href="/mypage"
+                    className="flex shrink-0 items-center space-x-2 rounded-xl bg-gradient-to-r from-emerald-100 to-green-100 px-4 py-2 transition hover:from-emerald-200 hover:to-green-200"
+                    aria-label="마이페이지로 이동"
+                  >
                     <div className="w-8 h-8 rounded-full overflow-hidden relative">
                       <Image 
                         src={getCharacterImagePath(user.character_type, 'normal')}
@@ -122,13 +110,7 @@ export default function MainLayout({
                     <span className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-green-600">
                       Lv.{user.level}
                     </span>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200"
-                  >
-                    로그아웃
-                  </button>
+                  </Link>
                 </>
               )}
             </div>
@@ -146,29 +128,27 @@ export default function MainLayout({
             <TeamSwitcher />
             {user && (
               <>
-              <div className="flex shrink-0 items-center space-x-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-100 to-green-100">
-                <div className="w-6 h-6 rounded-full overflow-hidden relative">
-                  <Image 
-                    src={getCharacterImagePath(user.character_type, 'normal')}
-                    alt={user.username}
-                    fill
-                    sizes="24px"
-                    className="object-cover"
-                  />
-                </div>
-                <span className="text-xs font-semibold text-gray-800">
-                  {user.username}
-                </span>
-                <span className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-green-600">
-                  Lv.{user.level}
-                </span>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="text-xs text-gray-600 hover:text-gray-900"
-              >
-                로그아웃
-              </button>
+                <Link
+                  href="/mypage"
+                  className="flex shrink-0 items-center space-x-2 rounded-lg bg-gradient-to-r from-emerald-100 to-green-100 px-3 py-1.5 transition hover:from-emerald-200 hover:to-green-200"
+                  aria-label="마이페이지로 이동"
+                >
+                  <div className="w-6 h-6 rounded-full overflow-hidden relative">
+                    <Image 
+                      src={getCharacterImagePath(user.character_type, 'normal')}
+                      alt={user.username}
+                      fill
+                      sizes="24px"
+                      className="object-cover"
+                    />
+                  </div>
+                  <span className="text-xs font-semibold text-gray-800">
+                    {user.username}
+                  </span>
+                  <span className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-green-600">
+                    Lv.{user.level}
+                  </span>
+                </Link>
               </>
             )}
           </div>

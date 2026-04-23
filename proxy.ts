@@ -42,6 +42,7 @@ export async function proxy(request: NextRequest) {
   if (
     !user &&
     (pathname.startsWith('/village') ||
+      pathname.startsWith('/mypage') ||
       pathname.startsWith('/team') ||
       pathname.startsWith('/logs') ||
       pathname.startsWith('/stats') ||
@@ -80,7 +81,8 @@ export async function proxy(request: NextRequest) {
 
     if (
       !profile.active_team_id &&
-      pathname !== '/team'
+      pathname !== '/team' &&
+      pathname !== '/mypage'
     ) {
       const url = request.nextUrl.clone()
       url.pathname = '/team'
