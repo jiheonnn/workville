@@ -22,7 +22,7 @@ interface VillageStoreData {
   status: UserStatus
   lastUpdated: string | null
   todaySessions: WorkSession[]
-  totalDurationMinutes: number
+  completedDurationMinutes: number
 }
 
 interface VillageStore {
@@ -31,7 +31,7 @@ interface VillageStore {
   currentUserId: string | null
   currentUserStatus: UserStatus
   todaySessions: WorkSession[]
-  totalDurationMinutes: number
+  completedDurationMinutes: number
   isLoading: boolean
   error: string | null
   onlineUsers: Set<string>
@@ -42,7 +42,7 @@ interface VillageStore {
   updateUserStatus: (userId: string, status: UserStatus) => void
   setCurrentUserStatus: (status: UserStatus) => void
   setTodaySessions: (sessions: WorkSession[]) => void
-  setTotalDurationMinutes: (minutes: number) => void
+  setCompletedDurationMinutes: (minutes: number) => void
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
   setOnlineUsers: (userIds: string[]) => void
@@ -60,7 +60,7 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
   currentUserId: null,
   currentUserStatus: 'home',
   todaySessions: [],
-  totalDurationMinutes: 0,
+  completedDurationMinutes: 0,
   isLoading: false,
   error: null,
   onlineUsers: new Set(),
@@ -79,7 +79,7 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
 
   setCurrentUserStatus: (status) => set({ currentUserStatus: status }),
   setTodaySessions: (sessions) => set({ todaySessions: sessions }),
-  setTotalDurationMinutes: (minutes) => set({ totalDurationMinutes: minutes }),
+  setCompletedDurationMinutes: (minutes) => set({ completedDurationMinutes: minutes }),
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
 
@@ -140,7 +140,7 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
         currentUserId: data.userId ?? null,
         currentUserStatus: data.status,
         todaySessions: data.todaySessions || [],
-        totalDurationMinutes: data.totalDurationMinutes || 0,
+        completedDurationMinutes: data.completedDurationMinutes || 0,
         isLoading: false
       })
       logVillageDebug('VillageStore: fetchCurrentStatus success', {

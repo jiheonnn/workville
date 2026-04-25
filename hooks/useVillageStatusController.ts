@@ -14,7 +14,7 @@ export function useVillageStatusController() {
   const {
     currentUserStatus,
     todaySessions,
-    totalDurationMinutes,
+    completedDurationMinutes,
     error,
     fetchCurrentStatus,
     updateMyStatus,
@@ -58,9 +58,9 @@ export function useVillageStatusController() {
         currentUserStatus,
         currentTime,
         todaySessions,
-        totalDurationMinutes,
+        completedDurationMinutes,
       }),
-    [currentTime, currentUserStatus, todaySessions, totalDurationMinutes]
+    [currentTime, currentUserStatus, todaySessions, completedDurationMinutes]
   )
 
   const latestCheckInTime = useMemo(() => {

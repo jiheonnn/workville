@@ -429,31 +429,15 @@ export async function GET(request: NextRequest) {
       .eq('date', today)
       .order('check_in_time', { ascending: true })
 
-    // Calculate total duration for today (excluding breaks)
-    let totalDurationMinutes = 0
+    // Calculate completed duration for today (excluding breaks)
+    let completedDurationMinutes = 0
     if (todaySessions) {
       todaySessions.forEach(session => {
         if (session.duration_minutes) {
-          // Completed session - duration already excludes breaks
-          totalDurationMinutes += session.duration_minutes
-        } else if (session.check_in_time && !session.check_out_time) {
-          // Active session - calculate current duration excluding breaks
-          const checkInTime = new Date(session.check_in_time)
-          const currentTime = new Date()
-          const totalMinutes = Math.floor((currentTime.getTime() - checkInTime.getTime()) / (1000 * 60))
-          
-          let breakMinutes = session.break_minutes || 0
-          
-          // If currently on break, add current break duration
-          if (userStatus?.status === 'break' && session.last_break_start) {
-            const breakStart = new Date(session.last_break_start)
-            const currentBreakDuration = Math.floor((currentTime.getTime() - breakStart.getTime()) / (1000 * 60))
-            breakMinutes += currentBreakDuration
-          }
-          
-          // Subtract break time from total
-          const workMinutes = Math.max(0, totalMinutes - breakMinutes)
-          totalDurationMinutes += workMinutes
+          // 이유:
+          // 서버는 DB에 확정 저장된 완료 세션만 집계합니다.
+          // 진행 중 세션은 화면에서 1초마다 다시 계산해야 하므로 여기서 더하면 이중 합산됩니다.
+          completedDurationMinutes += session.duration_minutes
         }
       })
     }
@@ -463,7 +447,7 @@ export async function GET(request: NextRequest) {
       status: userStatus?.status || 'home',
       lastUpdated: userStatus?.last_updated,
       todaySessions,
-      totalDurationMinutes
+      completedDurationMinutes
     })
 
   } catch (error) {
