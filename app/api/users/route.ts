@@ -21,6 +21,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
     }
 
+    const membershipMap = new Map(
+      (memberships || []).map((membership) => [membership.user_id, membership])
+    )
     const memberIds = (memberships || []).map((membership) => membership.user_id)
 
     if (memberIds.length === 0) {
@@ -50,6 +53,9 @@ export async function GET(request: NextRequest) {
       .sort((left, right) => left.username.localeCompare(right.username, 'ko'))
       .map((profile) => ({
         ...profile,
+        membership_id: membershipMap.get(profile.id)?.id,
+        role: membershipMap.get(profile.id)?.role || 'member',
+        can_manage_own_records: membershipMap.get(profile.id)?.can_manage_own_records === true,
         user_status: [
           {
             status: statusMap.get(profile.id) || 'home',

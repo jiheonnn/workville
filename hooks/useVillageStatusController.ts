@@ -7,9 +7,23 @@ import { type UserStatus } from '@/lib/types'
 import { getTodayKorea } from '@/lib/utils/date'
 import { createVillageTraceId, logVillageDebug } from '@/lib/village/debug'
 import { getDisplayedStatusSummary } from '@/lib/village/status-summary'
+import {
+  getStatusTransitionBanner,
+  type StatusTransitionBanner,
+} from '@/lib/village/status-transition-banner'
+
+interface RecordReviewBanner {
+  tone: 'warning' | 'info'
+  title: string
+  message: string
+  actionLabel?: string
+}
 
 export function useVillageStatusController() {
   const [showWorkLogModal, setShowWorkLogModal] = useState(false)
+  const [recordReviewBanner, setRecordReviewBanner] = useState<RecordReviewBanner | null>(null)
+  const [statusTransitionBanner, setStatusTransitionBanner] =
+    useState<StatusTransitionBanner | null>(null)
   const [currentTime, setCurrentTime] = useState(new Date())
   const {
     currentUserStatus,
@@ -97,15 +111,23 @@ export function useVillageStatusController() {
       return
     }
 
+    const previousStatus = currentUserStatus
+
     void updateMyStatus(newStatus, traceId)
-      .then(async (success) => {
+      .then(async (result) => {
         logVillageDebug('VillageStatusController: updateMyStatus resolved', {
           traceId,
-          success,
+          success: result.ok,
           status: newStatus,
         })
 
-        if (!success || newStatus !== 'working') {
+        if (!result.ok) {
+          return
+        }
+
+        showStatusTransitionBanner(previousStatus, newStatus)
+
+        if (newStatus !== 'working') {
           return
         }
 
@@ -140,18 +162,24 @@ export function useVillageStatusController() {
 
   const handleWorkLogSubmit = async () => {
     const traceId = createVillageTraceId('home')
-    const success = await updateMyStatus('home', traceId)
+    const previousStatus = currentUserStatus
+    const result = await updateMyStatus('home', traceId)
 
     logVillageDebug('VillageStatusController: work log submit resolved', {
       traceId,
-      success,
+      success: result.ok,
     })
 
-    if (!success) {
+    if (!result.ok) {
       return
     }
 
     setShowWorkLogModal(false)
+    const didShowRecordReviewBanner = showRecordReviewBanner(result.recordReview)
+
+    if (!didShowRecordReviewBanner) {
+      showStatusTransitionBanner(previousStatus, 'home')
+    }
 
     const { setCheckInDate } = await import('@/lib/stores/work-log-store').then(
       (module) => module.useWorkLogStore.getState()
@@ -163,14 +191,69 @@ export function useVillageStatusController() {
     setShowWorkLogModal(false)
   }
 
+  const showRecordReviewBanner = (
+    recordReview: Awaited<ReturnType<typeof updateMyStatus>>['recordReview']
+  ) => {
+    if (!recordReview?.required) {
+      return false
+    }
+
+    if (recordReview.canManageOwnRecords) {
+      setStatusTransitionBanner(null)
+      setRecordReviewBanner({
+        tone: 'warning',
+        title: '근무시간이 비정상적으로 길어요',
+        message: '퇴근 시간이 늦게 찍힌 것 같다면 업무기록에서 출근/퇴근 시간을 수정할 수 있습니다.',
+        actionLabel: '업무기록 열기',
+      })
+      return true
+    }
+
+    setStatusTransitionBanner(null)
+    setRecordReviewBanner({
+      tone: 'info',
+      title: '근무시간 확인이 필요해요',
+      message: '팀장에게 기록 관리 권한을 요청하세요.',
+    })
+    return true
+  }
+
+  const showStatusTransitionBanner = (previousStatus: UserStatus, nextStatus: UserStatus) => {
+    const banner = getStatusTransitionBanner(previousStatus, nextStatus)
+
+    if (!banner) {
+      return
+    }
+
+    setRecordReviewBanner(null)
+    setStatusTransitionBanner(banner)
+  }
+
+  const closeRecordReviewBanner = () => {
+    setRecordReviewBanner(null)
+  }
+
+  const closeStatusTransitionBanner = () => {
+    setStatusTransitionBanner(null)
+  }
+
+  const handleRecordReviewAction = () => {
+    window.location.href = '/logs'
+  }
+
   return {
     currentUserStatus,
     error,
     latestCheckInTime,
     showWorkLogModal,
+    recordReviewBanner,
+    statusTransitionBanner,
     statusSummary,
     handleStatusChange,
     handleWorkLogSubmit,
     handleWorkLogSkip,
+    closeRecordReviewBanner,
+    closeStatusTransitionBanner,
+    handleRecordReviewAction,
   }
 }

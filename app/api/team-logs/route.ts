@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { requireActiveTeam } from '@/lib/team/server-context'
 import { createClient } from '@/lib/supabase/server'
+import { canManageOwnRecords } from '@/lib/team/record-permissions'
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { activeTeamId } = await requireActiveTeam(supabase)
+    const { userId: currentUserId, activeTeamId } = await requireActiveTeam(supabase)
 
     const { searchParams } = new URL(request.url)
     const startDate = searchParams.get('startDate')
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     const { data: memberships, error: membershipsError } = await supabase
       .from('team_members')
-      .select('user_id')
+      .select('*')
       .eq('team_id', activeTeamId)
       .eq('status', 'active')
 
@@ -27,6 +28,12 @@ export async function GET(request: NextRequest) {
     }
 
     const memberIds = (memberships || []).map((membership) => membership.user_id)
+    const currentMembership = (memberships || []).find(
+      (membership) => membership.user_id === currentUserId
+    )
+    const currentUserCanManageOwnRecords = currentMembership
+      ? canManageOwnRecords(currentMembership as any)
+      : false
 
     if (memberIds.length === 0) {
       return NextResponse.json({
@@ -75,7 +82,7 @@ export async function GET(request: NextRequest) {
         logUserIds.length > 0 && logDates.length > 0
           ? supabase
               .from('work_sessions')
-              .select('team_id, user_id, date, check_in_time, check_out_time, duration_minutes')
+              .select('id, team_id, user_id, date, check_in_time, check_out_time, duration_minutes, break_minutes')
               .eq('team_id', activeTeamId)
               .in('user_id', logUserIds)
               .in('date', logDates)
@@ -132,6 +139,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       logs: transformedLogs,
       users: profiles || [],
+      currentUserId,
+      canManageOwnRecords: currentUserCanManageOwnRecords,
       pagination: {
         total: count || 0,
         limit,

@@ -7,9 +7,12 @@ import PendingInvitesPanel from './PendingInvitesPanel'
 import TeamCreateDialog from './TeamCreateDialog'
 
 export interface TeamMemberSummary {
+  membership_id: string
   id: string
   username: string
   character_type: number | null
+  role: 'owner' | 'member'
+  can_manage_own_records: boolean
   user_status: Array<{ status: string }>
 }
 
@@ -33,6 +36,7 @@ interface TeamDashboardViewProps {
   onAcceptInvite: (inviteId: string) => Promise<boolean>
   onInviteMember: (email: string) => Promise<boolean>
   onTransferOwner: (memberId: string) => Promise<void>
+  onToggleRecordPermission: (membershipId: string, canManageOwnRecords: boolean) => Promise<void>
   onLeaveTeam: () => Promise<void>
   onCancelInvite: (inviteId: string) => Promise<void>
 }
@@ -87,6 +91,7 @@ export default function TeamDashboardView({
   onAcceptInvite,
   onInviteMember,
   onTransferOwner,
+  onToggleRecordPermission,
   onLeaveTeam,
   onCancelInvite,
 }: TeamDashboardViewProps) {
@@ -158,13 +163,29 @@ export default function TeamDashboardView({
                           </div>
 
                           {activeTeam.role === 'owner' && !isCurrentUser && (
-                            <button
-                              type="button"
-                              onClick={() => void onTransferOwner(member.id)}
-                              className="rounded-2xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-200"
-                            >
-                              팀장 위임
-                            </button>
+                            <div className="flex flex-col gap-2 sm:items-end">
+                              <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                <input
+                                  type="checkbox"
+                                  checked={member.can_manage_own_records}
+                                  onChange={(event) => {
+                                    void onToggleRecordPermission(
+                                      member.membership_id,
+                                      event.currentTarget.checked
+                                    )
+                                  }}
+                                  className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                />
+                                기록 관리 권한
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => void onTransferOwner(member.id)}
+                                className="rounded-2xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-200"
+                              >
+                                팀장 위임
+                              </button>
+                            </div>
                           )}
                         </div>
                       )

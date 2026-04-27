@@ -171,6 +171,40 @@ export default function TeamManagementPanel() {
     await refreshActiveInvites()
   }
 
+  const handleToggleRecordPermission = async (
+    membershipId: string,
+    canManageOwnRecords: boolean
+  ) => {
+    if (!activeTeamId) {
+      return
+    }
+
+    const response = await fetch(
+      `/api/teams/${activeTeamId}/members/${membershipId}/record-permission`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ canManageOwnRecords }),
+      }
+    )
+    const body = await parseJsonResponse(response)
+
+    if (!response.ok) {
+      setPageError(typeof body.error === 'string' ? body.error : '기록 관리 권한 변경에 실패했습니다.')
+      return
+    }
+
+    setMembers((currentMembers) =>
+      currentMembers.map((member) =>
+        member.membership_id === membershipId
+          ? { ...member, can_manage_own_records: canManageOwnRecords }
+          : member
+      )
+    )
+  }
+
   const handleLeaveTeam = async () => {
     if (!activeTeamId) {
       return
@@ -227,6 +261,7 @@ export default function TeamManagementPanel() {
       onAcceptInvite={handleAcceptInvite}
       onInviteMember={handleInvite}
       onTransferOwner={handleTransferOwner}
+      onToggleRecordPermission={handleToggleRecordPermission}
       onLeaveTeam={handleLeaveTeam}
       onCancelInvite={handleCancelInvite}
     />

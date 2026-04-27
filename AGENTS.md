@@ -104,7 +104,7 @@
 
 ### supabase mcp
 - 용도: supabase를 직접 조회해야하거나 설정에 대해 확인해야할 때, 실제 데이터를 조회해야할 때, 스키마 구조 확인해야할 때, 직접 데이터를 수정해야할 때, SQL 쿼리 실행해야할 때
-
+- 프로젝트는 workville-v2 입니다. v1은 레거시이니 확인하지도 말고 건들지도 마세요.
 
 ## AI 에이전트 코어 동작 및 아키텍처 지침 (Core Behavior & Architecture Guidelines)
 

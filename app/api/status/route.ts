@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { requireActiveTeam } from '@/lib/team/server-context'
 import { createApiClient } from '@/lib/supabase/api-client'
+import { canManageOwnRecords } from '@/lib/team/record-permissions'
 import { UserStatus } from '@/lib/types'
 import { getTodayKorea } from '@/lib/utils/date'
+import { isAbnormalWorkDuration } from '@/lib/work-sessions/validation'
 import { buildWorkLogContent } from '@/lib/work-log/content'
 import { sendSlackNotification, sendWorkSummaryNotification } from '@/lib/slack/notifications'
 import { nanoid } from 'nanoid'
@@ -38,6 +40,14 @@ export async function POST(request: NextRequest) {
 
     const previousStatus = currentStatus?.status || 'home'
     const now = new Date().toISOString()
+    let recordReview:
+      | {
+          required: true
+          canManageOwnRecords: boolean
+          sessionId: string
+          durationMinutes: number
+        }
+      | undefined
 
     // Handle work session tracking
     if ((previousStatus === 'working' || previousStatus === 'break') && status === 'home') {
@@ -74,6 +84,7 @@ export async function POST(request: NextRequest) {
         const checkOutTime = new Date(now)
         const totalMinutes = Math.max(1, Math.floor((checkOutTime.getTime() - checkInTime.getTime()) / (1000 * 60)))
         const durationMinutes = Math.max(1, totalMinutes - totalBreakMinutes)
+        const completedSessionId = openSession.id
 
         // Update work session with check-out time, duration, and break minutes
         const { error: sessionError } = await supabase
@@ -93,6 +104,23 @@ export async function POST(request: NextRequest) {
           console.error('Error updating work session - Details:', sessionError.details)
           console.error('Error updating work session - Hint:', sessionError.hint)
           // Don't return here, continue with status update
+        }
+
+        if (isAbnormalWorkDuration(durationMinutes)) {
+          const { data: membership } = await supabase
+            .from('team_members')
+            .select('role, can_manage_own_records')
+            .eq('team_id', activeTeamId)
+            .eq('user_id', userId)
+            .eq('status', 'active')
+            .single()
+
+          recordReview = {
+            required: true,
+            canManageOwnRecords: membership ? canManageOwnRecords(membership as any) : false,
+            sessionId: completedSessionId,
+            durationMinutes,
+          }
         }
 
         // Update total work hours in profile
@@ -371,6 +399,7 @@ export async function POST(request: NextRequest) {
       success: true, 
       status,
       previousStatus,
+      recordReview,
       message: `Status changed from ${previousStatus} to ${status}`
     })
 

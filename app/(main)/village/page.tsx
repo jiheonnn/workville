@@ -1,6 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import AtlasBanner from '@/components/ui/AtlasBanner'
 import WorkLogConfirmModal from '@/components/work-log/WorkLogConfirmModal'
 import VillageStatusSegmentedControl from '@/components/village/VillageStatusSegmentedControl'
 import VillageWorkLogPanel from '@/components/village/VillageWorkLogPanel'
@@ -15,8 +16,13 @@ export default function VillagePage() {
     currentUserStatus,
     error,
     latestCheckInTime,
+    recordReviewBanner,
     showWorkLogModal,
+    statusTransitionBanner,
     statusSummary,
+    closeRecordReviewBanner,
+    closeStatusTransitionBanner,
+    handleRecordReviewAction,
     handleStatusChange,
     handleWorkLogSubmit,
     handleWorkLogSkip,
@@ -24,6 +30,26 @@ export default function VillagePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-slate-50 to-gray-100">
+      {recordReviewBanner ? (
+        <AtlasBanner
+          tone={recordReviewBanner.tone}
+          title={recordReviewBanner.title}
+          message={recordReviewBanner.message}
+          actionLabel={recordReviewBanner.actionLabel}
+          onAction={recordReviewBanner.actionLabel ? handleRecordReviewAction : undefined}
+          onClose={closeRecordReviewBanner}
+          autoCloseMs={5000}
+        />
+      ) : statusTransitionBanner ? (
+        <AtlasBanner
+          tone={statusTransitionBanner.tone}
+          title={statusTransitionBanner.title}
+          message={statusTransitionBanner.message}
+          onClose={closeStatusTransitionBanner}
+          autoCloseMs={statusTransitionBanner.autoCloseMs}
+        />
+      ) : null}
+
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
           <div className="xl:col-span-3">

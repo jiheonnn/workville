@@ -25,6 +25,18 @@ interface VillageStoreData {
   completedDurationMinutes: number
 }
 
+export interface RecordReviewNotice {
+  required: true
+  canManageOwnRecords: boolean
+  sessionId: string
+  durationMinutes: number
+}
+
+export interface StatusUpdateResult {
+  ok: boolean
+  recordReview?: RecordReviewNotice
+}
+
 interface VillageStore {
   // State
   users: VillageUser[]
@@ -51,7 +63,7 @@ interface VillageStore {
   // API Actions
   fetchVillageUsers: () => Promise<void>
   fetchCurrentStatus: () => Promise<void>
-  updateMyStatus: (status: UserStatus, traceId?: string) => Promise<boolean>
+  updateMyStatus: (status: UserStatus, traceId?: string) => Promise<StatusUpdateResult>
 }
 
 export const useVillageStore = create<VillageStore>((set, get) => ({
@@ -225,7 +237,7 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
           error: errorData.error || 'Failed to update status',
         })
         
-        return false
+        return { ok: false }
       }
 
       const data = await response.json()
@@ -247,7 +259,7 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
       }
 
       console.log('village-store: Status update successful')
-      return true
+      return { ok: true, recordReview: data.recordReview }
     } catch (error) {
       console.error('village-store: Error updating status:', error)
       
@@ -264,7 +276,7 @@ export const useVillageStore = create<VillageStore>((set, get) => ({
         message: error instanceof Error ? error.message : 'Unknown error',
       })
       
-      return false
+      return { ok: false }
     }
   },
 }))

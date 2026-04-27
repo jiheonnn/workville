@@ -4,8 +4,10 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import { CharacterType } from '@/lib/types'
 import { getCharacterEmoji, getCharacterImagePath } from '@/lib/character-utils'
+import { validateWorkSessionEditWindow } from '@/lib/work-sessions/validation'
 import CalendarView from '@/components/work-log/CalendarView'
 import WorkLogDisplay from '@/components/work-log/WorkLogDisplay'
+import WorkSessionEditModal from '@/components/work-log/WorkSessionEditModal'
 
 interface Profile {
   id: string
@@ -14,9 +16,12 @@ interface Profile {
 }
 
 interface WorkSession {
+  id: string
+  date: string
   check_in_time: string
   check_out_time: string | null
   duration_minutes: number | null
+  break_minutes?: number | null
 }
 
 interface WorkLog {
@@ -50,6 +55,9 @@ export default function LogsPage() {
   const [endDate, setEndDate] = useState<string>('')
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | undefined>()
   const [allLogs, setAllLogs] = useState<WorkLog[]>([]) // Store all logs for calendar view
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [canManageOwnRecords, setCanManageOwnRecords] = useState(false)
+  const [editingSession, setEditingSession] = useState<WorkSession | null>(null)
   const calendarDataFetchedRef = useRef(false)
 
   const fetchLogs = useCallback(async () => {
@@ -69,6 +77,8 @@ export default function LogsPage() {
       const data = await response.json()
       setLogs(data.logs)
       setUsers(data.users)
+      setCurrentUserId(typeof data.currentUserId === 'string' ? data.currentUserId : null)
+      setCanManageOwnRecords(data.canManageOwnRecords === true)
     } catch (err) {
       setError('업무일지를 불러오는데 실패했습니다.')
       console.error('Error fetching logs:', err)
@@ -89,6 +99,8 @@ export default function LogsPage() {
       const data = await response.json()
       setAllLogs(data.logs)
       setUsers(data.users)
+      setCurrentUserId(typeof data.currentUserId === 'string' ? data.currentUserId : null)
+      setCanManageOwnRecords(data.canManageOwnRecords === true)
     } catch (err) {
       setError('업무일지를 불러오는데 실패했습니다.')
       console.error('Error fetching all logs:', err)
@@ -152,20 +164,85 @@ export default function LogsPage() {
     return `${hours}시간 ${minutes}분`
   }
 
-  const renderWorkSessions = (sessions: WorkSession[]) => {
+  const renderWorkSessions = (sessions: WorkSession[], isOwnLog: boolean) => {
     if (!sessions || sessions.length === 0) return 'N/A'
     
     return sessions.map((session, index) => (
-      <div key={index} className="text-xs">
+      <div key={session.id || index} className="flex flex-wrap items-center gap-1 text-xs">
         <span>출근: {formatTime(session.check_in_time)}</span>
-        {session.check_out_time && (
-          <>
-            <span className="mx-1">→</span>
-            <span>퇴근: {formatTime(session.check_out_time)}</span>
-          </>
+        <span className="mx-1">→</span>
+        <span>퇴근: {formatTime(session.check_out_time)}</span>
+        {canEditSession(session, isOwnLog) && (
+          <button
+            type="button"
+            onClick={() => setEditingSession(session)}
+            className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100"
+          >
+            <span aria-hidden="true">✎</span>
+            수정
+          </button>
         )}
       </div>
     ))
+  }
+
+  const canEditSession = (session: WorkSession, isOwnLog: boolean) => {
+    return (
+      isOwnLog &&
+      canManageOwnRecords &&
+      Boolean(session.id) &&
+      Boolean(session.check_out_time) &&
+      validateWorkSessionEditWindow(session.date).ok
+    )
+  }
+
+  const refreshAfterSessionEdit = async () => {
+    await fetchLogs()
+
+    if (viewMode === 'calendar') {
+      await fetchAllLogs()
+    }
+  }
+
+  const renderLogCard = (log: WorkLog) => {
+    const isOwnLog = currentUserId === log.user_id
+    const sessions = log.work_sessions || []
+
+    return (
+      <div key={log.id} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]">
+        <div className="p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden relative">
+                <Image src={getCharacterImagePath(log.profiles.character_type, 'working', 1)} alt={log.profiles.username} fill className="object-cover" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-gray-800">{log.profiles.username}</h3>
+                <p className="text-sm text-gray-800 font-medium">{formatDate(log.date)}</p>
+                <div className="text-sm text-gray-600 font-medium mt-1">
+                  <div className="mb-1">총 근무시간: {calculateTotalDuration(log.work_sessions || [])}</div>
+                  <div className="space-y-1">
+                    {renderWorkSessions(sessions, isOwnLog)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="prose prose-sm max-w-none">
+            <WorkLogDisplay
+              content={log.content}
+              todos={log.todos}
+              completed_todos={log.completed_todos}
+              roi_high={log.roi_high}
+              roi_low={log.roi_low}
+              tomorrow_priority={log.tomorrow_priority}
+              feedback={log.feedback}
+            />
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (loading && logs.length === 0) {
@@ -304,41 +381,7 @@ export default function LogsPage() {
                     const day = String(selectedCalendarDate.getDate()).padStart(2, '0')
                     const dateStr = `${year}-${month}-${day}`
                     return log.date === dateStr
-                  }).map(log => (
-                      <div key={log.id} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]">
-                        <div className="p-6">
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden relative">
-                                <Image src={getCharacterImagePath(log.profiles.character_type, 'working', 1)} alt={log.profiles.username} fill className="object-cover" />
-                              </div>
-                              <div>
-                                <h3 className="font-bold text-lg text-gray-800">{log.profiles.username}</h3>
-                                <p className="text-sm text-gray-800 font-medium">{formatDate(log.date)}</p>
-                                <div className="text-sm text-gray-600 font-medium mt-1">
-                                  <div className="mb-1">총 근무시간: {calculateTotalDuration(log.work_sessions || [])}</div>
-                                  <div className="space-y-1">
-                                    {renderWorkSessions(log.work_sessions || [])}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="prose prose-sm max-w-none">
-                            <WorkLogDisplay 
-                              content={log.content}
-                              todos={log.todos}
-                              completed_todos={log.completed_todos}
-                              roi_high={log.roi_high}
-                              roi_low={log.roi_low}
-                              tomorrow_priority={log.tomorrow_priority}
-                              feedback={log.feedback}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))
+                  }).map(renderLogCard)
                 )
             )}
           </div>
@@ -350,41 +393,7 @@ export default function LogsPage() {
               <p className="text-gray-800 text-lg font-medium">📄 해당 기간에 작성된 업무일지가 없습니다.</p>
             </div>
           ) : (
-            logs.map(log => (
-              <div key={log.id} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]">
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden relative">
-                        <Image src={getCharacterImagePath(log.profiles.character_type, 'working', 1)} alt={log.profiles.username} fill className="object-cover" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-lg text-gray-800">{log.profiles.username}</h3>
-                        <p className="text-sm text-gray-800 font-medium">{formatDate(log.date)}</p>
-                        <div className="text-sm text-gray-600 font-medium mt-1">
-                          <div className="mb-1">총 근무시간: {calculateTotalDuration(log.work_sessions || [])}</div>
-                          <div className="space-y-1">
-                            {renderWorkSessions(log.work_sessions || [])}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="prose prose-sm max-w-none">
-                    <WorkLogDisplay 
-                      content={log.content}
-                      todos={log.todos}
-                      completed_todos={log.completed_todos}
-                      roi_high={log.roi_high}
-                      roi_low={log.roi_low}
-                      tomorrow_priority={log.tomorrow_priority}
-                      feedback={log.feedback}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))
+            logs.map(renderLogCard)
           )}
         </div>
       )}
@@ -395,6 +404,11 @@ export default function LogsPage() {
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
           </div>
         )}
+      <WorkSessionEditModal
+        session={editingSession}
+        onClose={() => setEditingSession(null)}
+        onSaved={refreshAfterSessionEdit}
+      />
     </div>
 
   )

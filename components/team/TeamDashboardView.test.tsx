@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
+import type { ComponentProps } from 'react'
 
 import TeamDashboardView from './TeamDashboardView'
 
-const createViewProps = () => ({
+const createViewProps = (): ComponentProps<typeof TeamDashboardView> => ({
   userId: 'user-1',
   teams: [
     {
@@ -42,15 +43,21 @@ const createViewProps = () => ({
   ],
   members: [
     {
+      membership_id: 'membership-1',
       id: 'user-1',
       username: '백지헌',
       character_type: 1,
+      role: 'owner' as const,
+      can_manage_own_records: false,
       user_status: [{ status: 'working' }],
     },
     {
+      membership_id: 'membership-2',
       id: 'user-2',
       username: '동료',
       character_type: 2,
+      role: 'member' as const,
+      can_manage_own_records: false,
       user_status: [{ status: 'home' }],
     },
   ],
@@ -68,6 +75,7 @@ const createViewProps = () => ({
   onAcceptInvite: vi.fn(async () => true),
   onInviteMember: vi.fn(async () => true),
   onTransferOwner: vi.fn(async () => {}),
+  onToggleRecordPermission: vi.fn(async () => {}),
   onLeaveTeam: vi.fn(async () => {}),
   onCancelInvite: vi.fn(async () => {}),
 })
@@ -151,5 +159,30 @@ describe('TeamDashboardView', () => {
     expect(html).not.toContain('팀에 합류하기 전인 사용자들을 관리합니다.')
     expect(html).not.toContain('상세 관리는 현재 활성 팀 중심으로 하고, 전환은 상단 스위처에서 진행합니다.')
     expect(html).not.toContain('팀을 만들면 바로 팀장이 되며, 이후 상단에서 활성 팀 전환이 가능합니다.')
+  })
+
+  it('팀장 화면에서 다른 멤버의 기록 관리 권한 토글을 렌더합니다', () => {
+    const html = renderToStaticMarkup(<TeamDashboardView {...createViewProps()} />)
+    const teammateIndex = html.indexOf('동료')
+    const teammateRowHtml = html.slice(teammateIndex)
+
+    expect(teammateRowHtml).toContain('기록 관리 권한')
+  })
+
+  it('일반 팀원 화면에서는 기록 관리 권한 토글을 렌더하지 않습니다', () => {
+    const props = createViewProps()
+    props.teams = [
+      {
+        id: 'team-1',
+        name: '테스트팀',
+        created_by: 'user-2',
+        created_at: '2026-04-23T00:00:00.000Z',
+        role: 'member',
+      },
+    ]
+
+    const html = renderToStaticMarkup(<TeamDashboardView {...props} />)
+
+    expect(html).not.toContain('기록 관리 권한')
   })
 })

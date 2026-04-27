@@ -38,6 +38,11 @@ export type Database = {
         Insert: Partial<WorkSession>
         Update: Partial<WorkSession>
       }
+      work_session_edits: {
+        Row: WorkSessionEdit
+        Insert: Partial<WorkSessionEdit>
+        Update: Partial<WorkSessionEdit>
+      }
       user_status: {
         Row: UserStatusRecord
         Insert: Partial<UserStatusRecord>
@@ -84,6 +89,7 @@ export interface TeamMember {
   user_id: string;
   role: TeamRole;
   status: TeamMembershipStatus;
+  can_manage_own_records: boolean;
   joined_at: string;
   created_at: string;
 }
@@ -110,6 +116,23 @@ export interface WorkSession {
   break_minutes: number;
   last_break_start: string | null;
   date: string;
+  created_at: string;
+}
+
+export interface WorkSessionEdit {
+  id: string;
+  team_id: string;
+  work_session_id: string;
+  user_id: string;
+  edited_by: string;
+  previous_check_in_time: string;
+  previous_check_out_time: string | null;
+  previous_duration_minutes: number | null;
+  next_check_in_time: string;
+  next_check_out_time: string;
+  next_duration_minutes: number;
+  previous_break_minutes: number;
+  reason: string | null;
   created_at: string;
 }
 
