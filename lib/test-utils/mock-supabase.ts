@@ -8,6 +8,7 @@ type TableName =
   | 'team_slack_notification_settings'
   | 'work_logs'
   | 'work_sessions'
+  | 'work_session_reminders'
   | 'work_session_edits'
   | 'user_status'
   | 'work_log_template'
@@ -312,6 +313,7 @@ export class MockSupabaseClient {
       team_slack_notification_settings: (state.tables?.team_slack_notification_settings || []).map(cloneRow),
       work_logs: (state.tables?.work_logs || []).map(cloneRow),
       work_sessions: (state.tables?.work_sessions || []).map(cloneRow),
+      work_session_reminders: (state.tables?.work_session_reminders || []).map(cloneRow),
       work_session_edits: (state.tables?.work_session_edits || []).map(cloneRow),
       user_status: (state.tables?.user_status || []).map(cloneRow),
       work_log_template: (state.tables?.work_log_template || []).map(cloneRow),

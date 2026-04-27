@@ -16,6 +16,7 @@ cp .env.local.example .env.local
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+CRON_SECRET=your_random_cron_secret
 ```
 
 3. Vercel에 배포할 경우 같은 키 이름으로 환경 변수를 등록합니다:
@@ -23,9 +24,11 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 npx vercel env add NEXT_PUBLIC_SUPABASE_URL
 npx vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
 npx vercel env add SUPABASE_SERVICE_ROLE_KEY
+npx vercel env add CRON_SECRET
 ```
 
 Slack Webhook URL은 팀장이 팀 관리 화면에서 팀별로 등록합니다.
+`CRON_SECRET`은 12시간 퇴근 리마인드 Cron API 보호에 사용하는 서버 전용 값입니다.
 
 ### 2. 데이터베이스 설정
 

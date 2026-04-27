@@ -8,7 +8,8 @@ vi.mock('@/lib/supabase/service-role', () => ({
   createServiceRoleClient: createServiceRoleClientMock,
 }))
 
-const { sendSlackNotification, sendWorkSummaryNotification } = await import('./notifications')
+const { sendCheckoutReminderNotification, sendSlackNotification, sendWorkSummaryNotification } =
+  await import('./notifications')
 
 const createAdminClient = (settings: Record<string, unknown>[]) =>
   new MockSupabaseClient({
@@ -33,6 +34,7 @@ describe('Slack team notifications', () => {
           is_enabled: true,
           notify_status_changes: true,
           notify_work_summaries: true,
+          notify_checkout_reminders: true,
         },
       ])
     )
@@ -77,6 +79,7 @@ describe('Slack team notifications', () => {
           is_enabled: true,
           notify_status_changes: false,
           notify_work_summaries: true,
+          notify_checkout_reminders: true,
         },
       ])
     )
@@ -101,6 +104,7 @@ describe('Slack team notifications', () => {
           is_enabled: true,
           notify_status_changes: true,
           notify_work_summaries: true,
+          notify_checkout_reminders: true,
         },
       ])
     )
@@ -127,6 +131,7 @@ describe('Slack team notifications', () => {
           is_enabled: true,
           notify_status_changes: true,
           notify_work_summaries: false,
+          notify_checkout_reminders: true,
         },
       ])
     )
@@ -135,5 +140,98 @@ describe('Slack team notifications', () => {
 
     expect(result).toBe(true)
     expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('퇴근 리마인드 토글이 켜져 있으면 팀 webhook URL로 리마인드를 전송합니다', async () => {
+    createServiceRoleClientMock.mockReturnValue(
+      createAdminClient([
+        {
+          id: 'setting-1',
+          team_id: 'team-1',
+          webhook_url: 'https://hooks.slack.com/services/team-1',
+          is_enabled: true,
+          notify_status_changes: true,
+          notify_work_summaries: true,
+          notify_checkout_reminders: true,
+        },
+      ])
+    )
+
+    const result = await sendCheckoutReminderNotification('team-1', {
+      username: '지헌',
+      checkInTime: '09:00',
+      elapsedTime: '12시간 30분',
+    })
+
+    expect(result).toBe('sent')
+    expect(fetch).toHaveBeenCalledWith(
+      'https://hooks.slack.com/services/team-1',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('퇴근을 잊으신 것 같아요'),
+      })
+    )
+    expect(fetch).toHaveBeenCalledWith(
+      'https://hooks.slack.com/services/team-1',
+      expect.objectContaining({
+        body: expect.stringContaining('09:00'),
+      })
+    )
+    expect(fetch).toHaveBeenCalledWith(
+      'https://hooks.slack.com/services/team-1',
+      expect.objectContaining({
+        body: expect.stringContaining('12시간 30분'),
+      })
+    )
+  })
+
+  it('퇴근 리마인드 토글이 꺼져 있으면 리마인드를 보내지 않습니다', async () => {
+    createServiceRoleClientMock.mockReturnValue(
+      createAdminClient([
+        {
+          id: 'setting-1',
+          team_id: 'team-1',
+          webhook_url: 'https://hooks.slack.com/services/team-1',
+          is_enabled: true,
+          notify_status_changes: true,
+          notify_work_summaries: true,
+          notify_checkout_reminders: false,
+        },
+      ])
+    )
+
+    const result = await sendCheckoutReminderNotification('team-1', {
+      username: '지헌',
+      checkInTime: '09:00',
+      elapsedTime: '12시간 30분',
+    })
+
+    expect(result).toBe('skipped')
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('퇴근 리마인드 Slack 발송이 실패하면 failed를 반환합니다', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404, statusText: 'Not Found' })))
+    createServiceRoleClientMock.mockReturnValue(
+      createAdminClient([
+        {
+          id: 'setting-1',
+          team_id: 'team-1',
+          webhook_url: 'https://hooks.slack.com/services/team-1',
+          is_enabled: true,
+          notify_status_changes: true,
+          notify_work_summaries: true,
+          notify_checkout_reminders: true,
+        },
+      ])
+    )
+
+    const result = await sendCheckoutReminderNotification('team-1', {
+      username: '지헌',
+      checkInTime: '09:00',
+      elapsedTime: '12시간 30분',
+    })
+
+    expect(result).toBe('failed')
   })
 })

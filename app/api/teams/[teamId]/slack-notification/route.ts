@@ -12,6 +12,7 @@ type SlackSetting = {
   is_enabled: boolean
   notify_status_changes: boolean
   notify_work_summaries: boolean
+  notify_checkout_reminders: boolean
 }
 
 const SLACK_INCOMING_WEBHOOK_PATTERN = /^https:\/\/hooks\.slack\.com\/services\/.+/
@@ -22,6 +23,7 @@ function formatSettingResponse(setting: SlackSetting | null) {
     isEnabled: setting?.is_enabled ?? true,
     notifyStatusChanges: setting?.notify_status_changes ?? true,
     notifyWorkSummaries: setting?.notify_work_summaries ?? true,
+    notifyCheckoutReminders: setting?.notify_checkout_reminders ?? true,
   }
 }
 
@@ -41,7 +43,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const serviceRoleSupabase = createServiceRoleClient()
     const { data, error } = await serviceRoleSupabase
       .from('team_slack_notification_settings')
-      .select('is_enabled, notify_status_changes, notify_work_summaries')
+      .select('is_enabled, notify_status_changes, notify_work_summaries, notify_checkout_reminders')
       .eq('team_id', teamId)
       .single()
 
@@ -76,11 +78,13 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const isEnabled = body.isEnabled
     const notifyStatusChanges = body.notifyStatusChanges
     const notifyWorkSummaries = body.notifyWorkSummaries
+    const notifyCheckoutReminders = body.notifyCheckoutReminders
 
     if (
       typeof isEnabled !== 'boolean' ||
       typeof notifyStatusChanges !== 'boolean' ||
-      typeof notifyWorkSummaries !== 'boolean'
+      typeof notifyWorkSummaries !== 'boolean' ||
+      typeof notifyCheckoutReminders !== 'boolean'
     ) {
       return NextResponse.json({ error: 'Slack 알림 설정 값이 올바르지 않습니다.' }, { status: 400 })
     }
@@ -111,6 +115,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       is_enabled: isEnabled,
       notify_status_changes: notifyStatusChanges,
       notify_work_summaries: notifyWorkSummaries,
+      notify_checkout_reminders: notifyCheckoutReminders,
       updated_by: userId,
       updated_at: now,
     }
@@ -120,7 +125,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
           .from('team_slack_notification_settings')
           .update(settingPayload)
           .eq('team_id', teamId)
-          .select('is_enabled, notify_status_changes, notify_work_summaries')
+          .select('is_enabled, notify_status_changes, notify_work_summaries, notify_checkout_reminders')
           .single()
       : await serviceRoleSupabase
           .from('team_slack_notification_settings')
@@ -131,7 +136,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
             created_at: now,
             ...settingPayload,
           })
-          .select('is_enabled, notify_status_changes, notify_work_summaries')
+          .select('is_enabled, notify_status_changes, notify_work_summaries, notify_checkout_reminders')
           .single()
 
     if (result.error || !result.data) {

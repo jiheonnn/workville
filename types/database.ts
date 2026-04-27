@@ -43,6 +43,11 @@ export type Database = {
         Insert: Partial<WorkSession>
         Update: Partial<WorkSession>
       }
+      work_session_reminders: {
+        Row: WorkSessionReminder
+        Insert: Partial<WorkSessionReminder>
+        Update: Partial<WorkSessionReminder>
+      }
       work_session_edits: {
         Row: WorkSessionEdit
         Insert: Partial<WorkSessionEdit>
@@ -118,6 +123,7 @@ export interface TeamSlackNotificationSetting {
   is_enabled: boolean;
   notify_status_changes: boolean;
   notify_work_summaries: boolean;
+  notify_checkout_reminders: boolean;
   created_by: string;
   updated_by: string;
   created_at: string;
@@ -134,6 +140,18 @@ export interface WorkSession {
   break_minutes: number;
   last_break_start: string | null;
   date: string;
+  created_at: string;
+}
+
+export type WorkSessionReminderType = 'checkout_12h';
+
+export interface WorkSessionReminder {
+  id: string;
+  team_id: string;
+  work_session_id: string;
+  user_id: string;
+  reminder_type: WorkSessionReminderType;
+  sent_at: string;
   created_at: string;
 }
 

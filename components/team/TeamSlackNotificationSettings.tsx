@@ -7,6 +7,7 @@ export interface SlackNotificationSettingView {
   isEnabled: boolean
   notifyStatusChanges: boolean
   notifyWorkSummaries: boolean
+  notifyCheckoutReminders: boolean
 }
 
 export interface SlackNotificationSettingPayload {
@@ -14,6 +15,7 @@ export interface SlackNotificationSettingPayload {
   isEnabled: boolean
   notifyStatusChanges: boolean
   notifyWorkSummaries: boolean
+  notifyCheckoutReminders: boolean
 }
 
 interface TeamSlackNotificationSettingsProps {
@@ -35,12 +37,14 @@ export default function TeamSlackNotificationSettings({
   const [isEnabled, setIsEnabled] = useState(true)
   const [notifyStatusChanges, setNotifyStatusChanges] = useState(true)
   const [notifyWorkSummaries, setNotifyWorkSummaries] = useState(true)
+  const [notifyCheckoutReminders, setNotifyCheckoutReminders] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     setIsEnabled(setting?.isEnabled ?? true)
     setNotifyStatusChanges(setting?.notifyStatusChanges ?? true)
     setNotifyWorkSummaries(setting?.notifyWorkSummaries ?? true)
+    setNotifyCheckoutReminders(setting?.notifyCheckoutReminders ?? true)
     setWebhookUrl('')
   }, [setting])
 
@@ -53,6 +57,7 @@ export default function TeamSlackNotificationSettings({
       isEnabled,
       notifyStatusChanges,
       notifyWorkSummaries,
+      notifyCheckoutReminders,
     })
 
     if (ok) {
@@ -128,6 +133,16 @@ export default function TeamSlackNotificationSettings({
               disabled={isLoading || isSaving}
             />
             퇴근 요약 알림
+          </label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              checked={notifyCheckoutReminders}
+              onChange={(event) => setNotifyCheckoutReminders(event.currentTarget.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+              disabled={isLoading || isSaving}
+            />
+            12시간 퇴근 리마인드
           </label>
         </div>
 

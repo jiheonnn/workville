@@ -73,6 +73,7 @@ describe('/api/teams/[teamId]/slack-notification', () => {
           is_enabled: true,
           notify_status_changes: true,
           notify_work_summaries: false,
+          notify_checkout_reminders: true,
           created_by: 'user-1',
           updated_by: 'user-1',
           created_at: '2026-04-23T00:00:00.000Z',
@@ -90,6 +91,7 @@ describe('/api/teams/[teamId]/slack-notification', () => {
       isEnabled: true,
       notifyStatusChanges: true,
       notifyWorkSummaries: false,
+      notifyCheckoutReminders: true,
     })
     expect(body.webhookUrl).toBeUndefined()
   })
@@ -108,6 +110,7 @@ describe('/api/teams/[teamId]/slack-notification', () => {
           isEnabled: true,
           notifyStatusChanges: true,
           notifyWorkSummaries: true,
+          notifyCheckoutReminders: false,
         }),
       }) as any,
       routeContext
@@ -122,6 +125,7 @@ describe('/api/teams/[teamId]/slack-notification', () => {
       is_enabled: true,
       notify_status_changes: true,
       notify_work_summaries: true,
+      notify_checkout_reminders: false,
       created_by: 'user-1',
       updated_by: 'user-1',
     })
@@ -140,6 +144,7 @@ describe('/api/teams/[teamId]/slack-notification', () => {
           isEnabled: true,
           notifyStatusChanges: true,
           notifyWorkSummaries: true,
+          notifyCheckoutReminders: true,
         }),
       }) as any,
       routeContext

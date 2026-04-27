@@ -14,13 +14,21 @@ interface StatusChangeData {
   timestamp?: string
 }
 
-type SlackNotificationKind = 'status_change' | 'work_summary'
+type SlackNotificationKind = 'status_change' | 'work_summary' | 'checkout_reminder'
+export type SlackNotificationDeliveryResult = 'sent' | 'skipped' | 'failed'
 
 interface TeamSlackNotificationSetting {
   webhook_url: string
   is_enabled: boolean
   notify_status_changes: boolean
   notify_work_summaries: boolean
+  notify_checkout_reminders: boolean
+}
+
+interface CheckoutReminderData {
+  username: string
+  checkInTime: string
+  elapsedTime: string
 }
 
 const STATUS_EMOJI = {
@@ -50,7 +58,7 @@ async function getTeamSlackSetting(
     const supabase = createServiceRoleClient()
     const { data, error } = await supabase
       .from('team_slack_notification_settings')
-      .select('webhook_url, is_enabled, notify_status_changes, notify_work_summaries')
+      .select('webhook_url, is_enabled, notify_status_changes, notify_work_summaries, notify_checkout_reminders')
       .eq('team_id', teamId)
       .single()
 
@@ -70,6 +78,10 @@ async function getTeamSlackSetting(
     }
 
     if (kind === 'work_summary' && !data.notify_work_summaries) {
+      return null
+    }
+
+    if (kind === 'checkout_reminder' && !data.notify_checkout_reminders) {
       return null
     }
 
@@ -243,4 +255,33 @@ export async function sendWorkSummaryNotification(
     console.error('Error sending work summary notification:', error)
     return false
   }
+}
+
+function formatCheckoutReminderMessage(data: CheckoutReminderData) {
+  return [
+    `⏰ *${data.username}*님, 퇴근을 잊으신 것 같아요.`,
+    `   • 출근 시각: ${data.checkInTime}`,
+    `   • 경과 시간: ${data.elapsedTime}`,
+  ].join('\n')
+}
+
+export async function sendCheckoutReminderNotification(
+  teamId: string,
+  data: CheckoutReminderData
+): Promise<SlackNotificationDeliveryResult> {
+  const setting = await getTeamSlackSetting(teamId, 'checkout_reminder')
+
+  if (!setting) {
+    return 'skipped'
+  }
+
+  const payload: SlackMessage = {
+    text: formatCheckoutReminderMessage(data),
+    username: 'Workville 알림봇',
+    icon_emoji: ':alarm_clock:',
+  }
+
+  const ok = await postSlackMessage(setting.webhook_url, payload)
+
+  return ok ? 'sent' : 'failed'
 }
