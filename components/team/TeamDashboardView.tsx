@@ -39,6 +39,7 @@ interface TeamDashboardViewProps {
   onToggleRecordPermission: (membershipId: string, canManageOwnRecords: boolean) => Promise<void>
   onLeaveTeam: () => Promise<void>
   onCancelInvite: (inviteId: string) => Promise<void>
+  slackNotificationSettings?: React.ReactNode
 }
 
 function SectionCard({
@@ -94,6 +95,7 @@ export default function TeamDashboardView({
   onToggleRecordPermission,
   onLeaveTeam,
   onCancelInvite,
+  slackNotificationSettings,
 }: TeamDashboardViewProps) {
   const activeTeam = teams.find((team) => team.id === activeTeamId) || null
   const otherTeams = teams.filter((team) => team.id !== activeTeamId)
@@ -203,6 +205,8 @@ export default function TeamDashboardView({
 
             <div className="space-y-6">
               <PendingInvitesPanel invites={pendingInvites} onAccept={onAcceptInvite} compact />
+
+              {activeTeam.role === 'owner' && slackNotificationSettings}
 
               {activeTeam.role === 'owner' && (
                 <SectionCard>

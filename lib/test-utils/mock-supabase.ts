@@ -5,13 +5,14 @@ type TableName =
   | 'teams'
   | 'team_members'
   | 'team_invites'
+  | 'team_slack_notification_settings'
   | 'work_logs'
   | 'work_sessions'
   | 'work_session_edits'
   | 'user_status'
   | 'work_log_template'
 
-type QueryAction = 'select' | 'insert' | 'update'
+type QueryAction = 'select' | 'insert' | 'update' | 'delete'
 
 type FilterOperator = 'eq' | 'neq' | 'is' | 'in' | 'gte' | 'lte'
 
@@ -149,6 +150,11 @@ class MockQueryBuilder implements PromiseLike<ExecuteResult> {
     return this
   }
 
+  delete() {
+    this.state.action = 'delete'
+    return this
+  }
+
   then<TResult1 = ExecuteResult, TResult2 = never>(
     onfulfilled?: ((value: ExecuteResult) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
@@ -163,6 +169,10 @@ class MockQueryBuilder implements PromiseLike<ExecuteResult> {
 
     if (this.state.action === 'update') {
       return this.executeUpdate()
+    }
+
+    if (this.state.action === 'delete') {
+      return this.executeDelete()
     }
 
     return this.executeSelect()
@@ -272,6 +282,20 @@ class MockQueryBuilder implements PromiseLike<ExecuteResult> {
 
     return { data: updatedRows, error: null }
   }
+
+  private executeDelete(): ExecuteResult {
+    const rows = this.store.getRows(this.state.table)
+    const remainingRows = rows.filter((row) => !this.state.filters.every((filter) => matchesFilter(row, filter)))
+    const deletedRows = rows.filter((row) => this.state.filters.every((filter) => matchesFilter(row, filter)))
+
+    rows.splice(0, rows.length, ...remainingRows)
+
+    if (this.state.singleResult) {
+      return { data: deletedRows[0] ? cloneRow(deletedRows[0]) : null, error: null }
+    }
+
+    return { data: deletedRows.map(cloneRow), error: null }
+  }
 }
 
 export class MockSupabaseClient {
@@ -285,6 +309,7 @@ export class MockSupabaseClient {
       teams: (state.tables?.teams || []).map(cloneRow),
       team_members: (state.tables?.team_members || []).map(cloneRow),
       team_invites: (state.tables?.team_invites || []).map(cloneRow),
+      team_slack_notification_settings: (state.tables?.team_slack_notification_settings || []).map(cloneRow),
       work_logs: (state.tables?.work_logs || []).map(cloneRow),
       work_sessions: (state.tables?.work_sessions || []).map(cloneRow),
       work_session_edits: (state.tables?.work_session_edits || []).map(cloneRow),

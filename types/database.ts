@@ -33,6 +33,11 @@ export type Database = {
         Insert: Partial<TeamInvite>
         Update: Partial<TeamInvite>
       }
+      team_slack_notification_settings: {
+        Row: TeamSlackNotificationSetting
+        Insert: Partial<TeamSlackNotificationSetting>
+        Update: Partial<TeamSlackNotificationSetting>
+      }
       work_sessions: {
         Row: WorkSession
         Insert: Partial<WorkSession>
@@ -104,6 +109,19 @@ export interface TeamInvite {
   status: TeamInviteStatus;
   created_at: string;
   accepted_at: string | null;
+}
+
+export interface TeamSlackNotificationSetting {
+  id: string;
+  team_id: string;
+  webhook_url: string;
+  is_enabled: boolean;
+  notify_status_changes: boolean;
+  notify_work_summaries: boolean;
+  created_by: string;
+  updated_by: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface WorkSession {

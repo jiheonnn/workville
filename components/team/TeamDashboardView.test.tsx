@@ -78,6 +78,7 @@ const createViewProps = (): ComponentProps<typeof TeamDashboardView> => ({
   onToggleRecordPermission: vi.fn(async () => {}),
   onLeaveTeam: vi.fn(async () => {}),
   onCancelInvite: vi.fn(async () => {}),
+  slackNotificationSettings: <div>Slack 알림 설정</div>,
 })
 
 describe('TeamDashboardView', () => {
@@ -169,6 +170,12 @@ describe('TeamDashboardView', () => {
     expect(teammateRowHtml).toContain('기록 관리 권한')
   })
 
+  it('팀장 화면에서 Slack 알림 설정을 렌더합니다', () => {
+    const html = renderToStaticMarkup(<TeamDashboardView {...createViewProps()} />)
+
+    expect(html).toContain('Slack 알림 설정')
+  })
+
   it('일반 팀원 화면에서는 기록 관리 권한 토글을 렌더하지 않습니다', () => {
     const props = createViewProps()
     props.teams = [
@@ -184,5 +191,6 @@ describe('TeamDashboardView', () => {
     const html = renderToStaticMarkup(<TeamDashboardView {...props} />)
 
     expect(html).not.toContain('기록 관리 권한')
+    expect(html).not.toContain('Slack 알림 설정')
   })
 })

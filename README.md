@@ -15,17 +15,17 @@ cp .env.local.example .env.local
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SLACK_WEBHOOK_URL=
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 ```
 
 3. Vercel에 배포할 경우 같은 키 이름으로 환경 변수를 등록합니다:
 ```bash
 npx vercel env add NEXT_PUBLIC_SUPABASE_URL
 npx vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
-npx vercel env add SLACK_WEBHOOK_URL
+npx vercel env add SUPABASE_SERVICE_ROLE_KEY
 ```
 
-`SLACK_WEBHOOK_URL`은 선택값이라 비워둘 수 있습니다.
+Slack Webhook URL은 팀장이 팀 관리 화면에서 팀별로 등록합니다.
 
 ### 2. 데이터베이스 설정
 

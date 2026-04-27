@@ -175,6 +175,7 @@ export async function POST(request: NextRequest) {
         // Send work summary notification when checking out
         if (profile?.username) {
           await sendWorkSummaryNotification(
+            activeTeamId,
             profile.username,
             durationMinutes,
             totalBreakMinutes,
@@ -387,7 +388,7 @@ export async function POST(request: NextRequest) {
 
     // Send Slack notification for status change
     if (profile?.username && previousStatus !== status) {
-      await sendSlackNotification({
+      await sendSlackNotification(activeTeamId, {
         username: profile.username,
         previousStatus: previousStatus as UserStatus,
         newStatus: status,

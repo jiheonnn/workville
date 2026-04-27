@@ -1,4 +1,5 @@
 import { UserStatus } from '@/lib/types'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 interface SlackMessage {
   text: string
@@ -11,6 +12,15 @@ interface StatusChangeData {
   previousStatus: UserStatus
   newStatus: UserStatus
   timestamp?: string
+}
+
+type SlackNotificationKind = 'status_change' | 'work_summary'
+
+interface TeamSlackNotificationSetting {
+  webhook_url: string
+  is_enabled: boolean
+  notify_status_changes: boolean
+  notify_work_summaries: boolean
 }
 
 const STATUS_EMOJI = {
@@ -32,24 +42,46 @@ const CHARACTER_EMOJI = [
   '👩‍🎨'  // Character 4
 ] as const
 
-export async function sendSlackNotification(data: StatusChangeData): Promise<boolean> {
-  const webhookUrl = process.env.SLACK_WEBHOOK_URL
-  
-  // Slack 웹훅 URL이 설정되지 않았으면 알림 건너뛰기
-  if (!webhookUrl) {
-    console.log('Slack webhook URL not configured, skipping notification')
-    return true
-  }
-
+async function getTeamSlackSetting(
+  teamId: string,
+  kind: SlackNotificationKind
+): Promise<TeamSlackNotificationSetting | null> {
   try {
-    const message = formatStatusChangeMessage(data)
-    
-    const payload: SlackMessage = {
-      text: message,
-      username: 'Workville 알림봇',
-      icon_emoji: ':office:'
+    const supabase = createServiceRoleClient()
+    const { data, error } = await supabase
+      .from('team_slack_notification_settings')
+      .select('webhook_url, is_enabled, notify_status_changes, notify_work_summaries')
+      .eq('team_id', teamId)
+      .single()
+
+    if (error || !data) {
+      if (error?.code !== 'PGRST116') {
+        console.error('Failed to load Slack notification setting:', error)
+      }
+      return null
     }
 
+    if (!data.is_enabled) {
+      return null
+    }
+
+    if (kind === 'status_change' && !data.notify_status_changes) {
+      return null
+    }
+
+    if (kind === 'work_summary' && !data.notify_work_summaries) {
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('Error loading Slack notification setting:', error)
+    return null
+  }
+}
+
+async function postSlackMessage(webhookUrl: string, payload: SlackMessage): Promise<boolean> {
+  try {
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
@@ -63,12 +95,27 @@ export async function sendSlackNotification(data: StatusChangeData): Promise<boo
       return false
     }
 
-    console.log('Slack notification sent successfully')
     return true
   } catch (error) {
     console.error('Error sending Slack notification:', error)
     return false
   }
+}
+
+export async function sendSlackNotification(teamId: string, data: StatusChangeData): Promise<boolean> {
+  const setting = await getTeamSlackSetting(teamId, 'status_change')
+
+  if (!setting) {
+    return true
+  }
+
+  const payload: SlackMessage = {
+    text: formatStatusChangeMessage(data),
+    username: 'Workville 알림봇',
+    icon_emoji: ':office:'
+  }
+
+  return postSlackMessage(setting.webhook_url, payload)
 }
 
 function formatStatusChangeMessage(data: StatusChangeData): string {
@@ -107,21 +154,15 @@ function formatStatusChangeMessage(data: StatusChangeData): string {
 }
 
 export async function sendWorkSummaryNotification(
+  teamId: string,
   username: string,
   durationMinutes: number,
   breakMinutes: number,
   workLog?: any
 ): Promise<boolean> {
-  console.log('=== sendWorkSummaryNotification called ===')
-  console.log('Username:', username)
-  console.log('Duration:', durationMinutes)
-  console.log('Break:', breakMinutes)
-  console.log('WorkLog:', JSON.stringify(workLog, null, 2))
-  
-  const webhookUrl = process.env.SLACK_WEBHOOK_URL
-  
-  if (!webhookUrl) {
-    console.log('No webhook URL configured')
+  const setting = await getTeamSlackSetting(teamId, 'work_summary')
+
+  if (!setting) {
     return true
   }
 
@@ -147,17 +188,9 @@ export async function sendWorkSummaryNotification(
       }
     }
 
-    // 기본 메시지 생성
     let message = `📊 *${username}*님의 오늘 근무 요약\n   • 근무 시간: ${workTimeText}${breakTimeText}`
     
-    // 업무일지가 있으면 내용 추가
-    console.log('Checking workLog for content...')
-    console.log('workLog exists:', !!workLog)
     if (workLog) {
-      console.log('workLog.todos:', workLog.todos)
-      console.log('workLog.completed_todos:', workLog.completed_todos)
-      console.log('workLog.roi_high:', workLog.roi_high)
-      console.log('workLog.feedback:', workLog.feedback)
       try {
         // 완료된 할 일 추가
         if (workLog.completed_todos && workLog.completed_todos.length > 0) {
@@ -199,23 +232,13 @@ export async function sendWorkSummaryNotification(
       }
     }
 
-    console.log('Final message to send:', message)
-    
     const payload: SlackMessage = {
       text: message,
       username: 'Workville 알림봇',
       icon_emoji: ':chart_with_upwards_trend:'
     }
 
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    })
-
-    return response.ok
+    return postSlackMessage(setting.webhook_url, payload)
   } catch (error) {
     console.error('Error sending work summary notification:', error)
     return false

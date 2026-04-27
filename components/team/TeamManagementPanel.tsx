@@ -10,6 +10,10 @@ import TeamDashboardView, {
   TeamInviteSummary,
   TeamMemberSummary,
 } from './TeamDashboardView'
+import TeamSlackNotificationSettings, {
+  SlackNotificationSettingPayload,
+  SlackNotificationSettingView,
+} from './TeamSlackNotificationSettings'
 
 async function parseJsonResponse(response: Response) {
   return response.json().catch(() => ({}))
@@ -30,6 +34,9 @@ export default function TeamManagementPanel() {
   const resetForTeamTransition = useWorkLogStore((state) => state.resetForTeamTransition)
   const [members, setMembers] = useState<TeamMemberSummary[]>([])
   const [activeInvites, setActiveInvites] = useState<TeamInviteSummary[]>([])
+  const [slackSetting, setSlackSetting] = useState<SlackNotificationSettingView | null>(null)
+  const [slackError, setSlackError] = useState<string | null>(null)
+  const [isSlackLoading, setIsSlackLoading] = useState(false)
   const [pageError, setPageError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -77,6 +84,34 @@ export default function TeamManagementPanel() {
     }
 
     void fetchActiveTeamData()
+  }, [activeTeam?.role, activeTeamId])
+
+  useEffect(() => {
+    const fetchSlackSetting = async () => {
+      if (!activeTeamId || activeTeam?.role !== 'owner') {
+        setSlackSetting(null)
+        setSlackError(null)
+        setIsSlackLoading(false)
+        return
+      }
+
+      setIsSlackLoading(true)
+      setSlackError(null)
+
+      const response = await fetch(`/api/teams/${activeTeamId}/slack-notification`, { cache: 'no-store' })
+      const body = await parseJsonResponse(response)
+
+      if (!response.ok) {
+        setSlackError(typeof body.error === 'string' ? body.error : 'Slack 알림 설정을 불러오지 못했습니다.')
+        setIsSlackLoading(false)
+        return
+      }
+
+      setSlackSetting(body as unknown as SlackNotificationSettingView)
+      setIsSlackLoading(false)
+    }
+
+    void fetchSlackSetting()
   }, [activeTeam?.role, activeTeamId])
 
   const handleCreateTeam = async (name: string) => {
@@ -247,6 +282,50 @@ export default function TeamManagementPanel() {
     await refreshActiveInvites()
   }
 
+  const handleSaveSlackSetting = async (payload: SlackNotificationSettingPayload) => {
+    if (!activeTeamId) {
+      return false
+    }
+
+    setSlackError(null)
+    const response = await fetch(`/api/teams/${activeTeamId}/slack-notification`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+    const body = await parseJsonResponse(response)
+
+    if (!response.ok) {
+      setSlackError(typeof body.error === 'string' ? body.error : 'Slack 알림 설정 저장에 실패했습니다.')
+      return false
+    }
+
+    setSlackSetting(body as unknown as SlackNotificationSettingView)
+    return true
+  }
+
+  const handleDeleteSlackSetting = async () => {
+    if (!activeTeamId) {
+      return false
+    }
+
+    setSlackError(null)
+    const response = await fetch(`/api/teams/${activeTeamId}/slack-notification`, {
+      method: 'DELETE',
+    })
+    const body = await parseJsonResponse(response)
+
+    if (!response.ok) {
+      setSlackError(typeof body.error === 'string' ? body.error : 'Slack 알림 설정 삭제에 실패했습니다.')
+      return false
+    }
+
+    setSlackSetting(body as unknown as SlackNotificationSettingView)
+    return true
+  }
+
   return (
     <TeamDashboardView
       userId={user?.id ?? null}
@@ -264,6 +343,17 @@ export default function TeamManagementPanel() {
       onToggleRecordPermission={handleToggleRecordPermission}
       onLeaveTeam={handleLeaveTeam}
       onCancelInvite={handleCancelInvite}
+      slackNotificationSettings={
+        activeTeam?.role === 'owner' ? (
+          <TeamSlackNotificationSettings
+            setting={slackSetting}
+            isLoading={isSlackLoading}
+            error={slackError}
+            onSave={handleSaveSlackSetting}
+            onDelete={handleDeleteSlackSetting}
+          />
+        ) : null
+      }
     />
   )
 }

@@ -4,9 +4,16 @@ import { MockSupabaseClient } from '@/lib/test-utils/mock-supabase'
 import { getTodayKorea } from '@/lib/utils/date'
 
 const createApiClientMock = vi.hoisted(() => vi.fn())
+const sendSlackNotificationMock = vi.hoisted(() => vi.fn(async () => true))
+const sendWorkSummaryNotificationMock = vi.hoisted(() => vi.fn(async () => true))
 
 vi.mock('@/lib/supabase/api-client', () => ({
   createApiClient: createApiClientMock,
+}))
+
+vi.mock('@/lib/slack/notifications', () => ({
+  sendSlackNotification: sendSlackNotificationMock,
+  sendWorkSummaryNotification: sendWorkSummaryNotificationMock,
 }))
 
 const { GET, POST } = await import('./route')
@@ -134,6 +141,8 @@ describe('POST /api/status', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-04-27T14:00:00.000Z'))
     createApiClientMock.mockReset()
+    sendSlackNotificationMock.mockClear()
+    sendWorkSummaryNotificationMock.mockClear()
   })
 
   afterEach(() => {
@@ -209,6 +218,64 @@ describe('POST /api/status', () => {
       canManageOwnRecords: true,
       sessionId: 'session-1',
       durationMinutes: 840,
+    })
+    expect(sendWorkSummaryNotificationMock).toHaveBeenCalledWith('team-1', '지헌', 840, 0, null)
+  })
+
+  it('상태 변경 알림에 활성 팀 ID를 전달합니다', async () => {
+    const supabase = new MockSupabaseClient({
+      tables: {
+        profiles: [
+          {
+            id: 'user-1',
+            email: 'user-1@example.com',
+            username: '지헌',
+            character_type: 1,
+            level: 1,
+            total_work_hours: 0,
+            active_team_id: 'team-1',
+            created_at: '2026-04-23T00:00:00.000Z',
+          },
+        ],
+        team_members: [
+          {
+            id: 'membership-1',
+            team_id: 'team-1',
+            user_id: 'user-1',
+            role: 'member',
+            status: 'active',
+            can_manage_own_records: false,
+            joined_at: '2026-04-23T00:00:00.000Z',
+            created_at: '2026-04-23T00:00:00.000Z',
+          },
+        ],
+        user_status: [
+          {
+            id: 'status-1',
+            team_id: 'team-1',
+            user_id: 'user-1',
+            status: 'working',
+            last_updated: '2026-04-27T00:00:00.000Z',
+          },
+        ],
+      },
+    })
+    createApiClientMock.mockResolvedValue(supabase)
+
+    const response = await POST(
+      new Request('http://localhost/api/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'break' }),
+      }) as any
+    )
+
+    expect(response.status).toBe(200)
+    expect(sendSlackNotificationMock).toHaveBeenCalledWith('team-1', {
+      username: '지헌',
+      previousStatus: 'working',
+      newStatus: 'break',
+      timestamp: '2026-04-27T14:00:00.000Z',
     })
   })
 })
