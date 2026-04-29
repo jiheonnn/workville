@@ -28,7 +28,11 @@ npx vercel env add CRON_SECRET
 ```
 
 Slack Webhook URL은 팀장이 팀 관리 화면에서 팀별로 등록합니다.
-`CRON_SECRET`은 12시간 퇴근 리마인드 Cron API 보호에 사용하는 서버 전용 값입니다.
+`CRON_SECRET`은 12시간 퇴근 리마인드 API 보호에 사용하는 서버 전용 값입니다.
+GitHub Actions가 30분마다 해당 API를 호출하므로, 같은 값을 GitHub Repository Secret에도 `CRON_SECRET` 이름으로 등록해야 합니다.
+```bash
+gh secret set CRON_SECRET
+```
 
 ### 2. 데이터베이스 설정
 
