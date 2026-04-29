@@ -40,7 +40,7 @@ export function useActivityPing(enabled: boolean) {
 
     // 이유:
     // 자동 휴식/퇴근은 브라우저 안에서 확인 가능한 활동만 기준으로 삼습니다.
-    // 이벤트마다 DB를 쓰지 않고 5분 간격으로 제한해 2시간/6시간 정책에 충분한 정확도만 유지합니다.
+    // 이벤트마다 DB를 쓰지 않고 5분 간격으로 제한해 2시간/4시간 정책에 충분한 정확도만 유지합니다.
     sendActivityPing()
     ACTIVITY_EVENTS.forEach((eventName) => {
       window.addEventListener(eventName, sendActivityPing, { passive: true })

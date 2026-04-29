@@ -140,7 +140,7 @@ describe('Slack team notifications', () => {
       ])
     )
 
-    const result = await sendWorkSummaryNotification('team-1', '지헌', 180, 240, null, {
+    const result = await sendWorkSummaryNotification('team-1', '지헌', 180, 120, null, {
       automaticCheckout: true,
     })
 
@@ -160,7 +160,7 @@ describe('Slack team notifications', () => {
     expect(fetch).toHaveBeenCalledWith(
       'https://hooks.slack.com/services/team-1',
       expect.objectContaining({
-        body: expect.stringContaining('휴식 시간: 4시간 0분'),
+        body: expect.stringContaining('휴식 시간: 2시간 0분'),
       })
     )
   })
@@ -232,7 +232,7 @@ describe('Slack team notifications', () => {
       username: '지헌',
       action: 'checkout',
       effectiveTime: '16:00',
-      inactiveHours: 6,
+      inactiveHours: 4,
     })
 
     expect(result).toBe('failed')
@@ -257,7 +257,7 @@ describe('Slack team notifications', () => {
       username: '지헌',
       action: 'checkout',
       effectiveTime: '16:00',
-      inactiveHours: 6,
+      inactiveHours: 4,
     })
 
     expect(result).toBe('sent')

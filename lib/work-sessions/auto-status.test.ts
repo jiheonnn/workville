@@ -34,7 +34,7 @@ describe('auto status rules', () => {
     ).toBeNull()
   })
 
-  it('2시간 이상 6시간 미만 무활동이면 마지막 활동 2시간 뒤부터 휴식 처리합니다', () => {
+  it('2시간 이상 4시간 미만 무활동이면 마지막 활동 2시간 뒤부터 휴식 처리합니다', () => {
     const action = getAutoStatusAction({
       currentStatus: 'working',
       checkInTime: '2026-04-27T00:00:00.000Z',
@@ -52,15 +52,15 @@ describe('auto status rules', () => {
     })
   })
 
-  it('6시간 이상 무활동이면 마지막 활동 2시간 뒤부터 휴식으로 계산하고 6시간 뒤 퇴근 처리합니다', () => {
-    expect(AUTO_CHECKOUT_THRESHOLD_MINUTES).toBe(6 * 60)
+  it('4시간 이상 무활동이면 마지막 활동 2시간 뒤부터 휴식으로 계산하고 4시간 뒤 퇴근 처리합니다', () => {
+    expect(AUTO_CHECKOUT_THRESHOLD_MINUTES).toBe(4 * 60)
 
     const action = getAutoStatusAction({
       currentStatus: 'working',
       checkInTime: '2026-04-27T00:00:00.000Z',
       lastActivityAt: '2026-04-27T01:00:00.000Z',
       workLogUpdatedAt: null,
-      now: new Date('2026-04-27T07:30:00.000Z'),
+      now: new Date('2026-04-27T05:30:00.000Z'),
       existingBreakMinutes: 0,
       lastBreakStart: null,
     })
@@ -68,10 +68,10 @@ describe('auto status rules', () => {
     expect(action).toEqual({
       kind: 'checkout',
       lastActivityAt: '2026-04-27T01:00:00.000Z',
-      effectiveAt: '2026-04-27T07:00:00.000Z',
+      effectiveAt: '2026-04-27T05:00:00.000Z',
       breakStartAt: '2026-04-27T03:00:00.000Z',
-      additionalBreakMinutes: 240,
-      totalBreakMinutes: 240,
+      additionalBreakMinutes: 120,
+      totalBreakMinutes: 120,
       durationMinutes: 180,
     })
   })
@@ -82,17 +82,17 @@ describe('auto status rules', () => {
       checkInTime: '2026-04-27T00:00:00.000Z',
       lastActivityAt: '2026-04-27T01:00:00.000Z',
       workLogUpdatedAt: null,
-      now: new Date('2026-04-27T07:30:00.000Z'),
+      now: new Date('2026-04-27T05:30:00.000Z'),
       existingBreakMinutes: 30,
       lastBreakStart: '2026-04-27T02:00:00.000Z',
     })
 
     expect(action).toMatchObject({
       kind: 'checkout',
-      effectiveAt: '2026-04-27T07:00:00.000Z',
+      effectiveAt: '2026-04-27T05:00:00.000Z',
       breakStartAt: '2026-04-27T02:00:00.000Z',
-      additionalBreakMinutes: 300,
-      totalBreakMinutes: 330,
+      additionalBreakMinutes: 180,
+      totalBreakMinutes: 210,
       durationMinutes: 90,
     })
   })

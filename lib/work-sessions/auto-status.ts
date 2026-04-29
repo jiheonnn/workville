@@ -2,7 +2,7 @@ import { UserStatus } from '@/lib/types'
 
 export const ACTIVITY_PING_MIN_INTERVAL_MINUTES = 5
 export const AUTO_BREAK_THRESHOLD_MINUTES = 2 * 60
-export const AUTO_CHECKOUT_THRESHOLD_MINUTES = 6 * 60
+export const AUTO_CHECKOUT_THRESHOLD_MINUTES = 4 * 60
 
 interface LatestActivityInput {
   checkInTime: string

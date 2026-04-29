@@ -1,5 +1,6 @@
 import { UserStatus } from '@/lib/types'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { AUTO_CHECKOUT_THRESHOLD_MINUTES } from '@/lib/work-sessions/auto-status'
 
 interface SlackMessage {
   text: string
@@ -202,8 +203,9 @@ export async function sendWorkSummaryNotification(
       }
     }
 
+    const autoCheckoutHours = AUTO_CHECKOUT_THRESHOLD_MINUTES / 60
     let message = options?.automaticCheckout
-      ? `📊 *${username}*님의 오늘 근무 요약 (자동 퇴근 처리)\n   • 근무 시간: ${workTimeText}${breakTimeText}\n   • 안내: 6시간 동안 활동이 없어 자동 퇴근 처리되었습니다. 필요하면 업무기록에서 수정하세요.`
+      ? `📊 *${username}*님의 오늘 근무 요약 (자동 퇴근 처리)\n   • 근무 시간: ${workTimeText}${breakTimeText}\n   • 안내: ${autoCheckoutHours}시간 동안 활동이 없어 자동 퇴근 처리되었습니다. 필요하면 업무기록에서 수정하세요.`
       : `📊 *${username}*님의 오늘 근무 요약\n   • 근무 시간: ${workTimeText}${breakTimeText}`
     
     if (workLog) {

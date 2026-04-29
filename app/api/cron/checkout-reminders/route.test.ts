@@ -162,7 +162,7 @@ describe('GET /api/cron/checkout-reminders', () => {
     expect(sendAutoStatusNotificationMock).not.toHaveBeenCalled()
   })
 
-  it('2시간 이상 무활동 세션은 휴식으로, 6시간 이상 무활동 세션은 퇴근으로 자동 처리합니다', async () => {
+  it('2시간 이상 무활동 세션은 휴식으로, 4시간 이상 무활동 세션은 퇴근으로 자동 처리합니다', async () => {
     const supabase = createAdminClient()
     createServiceRoleClientMock.mockReturnValue(supabase)
 
@@ -188,7 +188,7 @@ describe('GET /api/cron/checkout-reminders', () => {
         expect.objectContaining({
           user_id: 'user-2',
           status: 'home',
-          last_updated: '2026-04-27T07:00:00.000Z',
+          last_updated: '2026-04-27T05:00:00.000Z',
         }),
         expect.objectContaining({
           user_id: 'user-3',
@@ -205,9 +205,9 @@ describe('GET /api/cron/checkout-reminders', () => {
         }),
         expect.objectContaining({
           id: 'auto-checkout-session',
-          check_out_time: '2026-04-27T07:00:00.000Z',
+          check_out_time: '2026-04-27T05:00:00.000Z',
           duration_minutes: 180,
-          break_minutes: 240,
+          break_minutes: 120,
           last_break_start: null,
         }),
       ])
@@ -230,14 +230,14 @@ describe('GET /api/cron/checkout-reminders', () => {
     expect(sendAutoStatusNotificationMock).toHaveBeenCalledWith('team-1', {
       username: '동료',
       action: 'checkout',
-      effectiveTime: '16:00',
-      inactiveHours: 6,
+      effectiveTime: '14:00',
+      inactiveHours: 4,
     })
     expect(sendWorkSummaryNotificationMock).toHaveBeenCalledWith(
       'team-1',
       '동료',
       180,
-      240,
+      120,
       expect.objectContaining({ id: 'log-1' }),
       { automaticCheckout: true }
     )
