@@ -271,6 +271,15 @@ describe('POST /api/status', () => {
     )
 
     expect(response.status).toBe(200)
+    expect(supabase.getRows('user_status')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          user_id: 'user-1',
+          status: 'break',
+          last_activity_at: '2026-04-27T14:00:00.000Z',
+        }),
+      ])
+    )
     expect(sendSlackNotificationMock).toHaveBeenCalledWith('team-1', {
       username: '지헌',
       previousStatus: 'working',

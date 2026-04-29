@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import TeamSwitcher from '@/components/team/TeamSwitcher'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { useActivityPing } from '@/hooks/useActivityPing'
 import { getCharacterImagePath } from '@/lib/character-utils'
 import { MAIN_NAV_ITEMS } from '@/lib/navigation/main-nav'
 import { shouldHideMainNavigation } from '@/lib/navigation/layout-visibility'
@@ -19,6 +20,7 @@ export default function MainLayout({
   const pathname = usePathname()
   const { user, setUser, setLoading, loadUserFromServer } = useAuthStore()
   const hideMainNavigation = shouldHideMainNavigation(pathname, user?.active_team_id)
+  useActivityPing(Boolean(user?.active_team_id))
 
   useEffect(() => {
     const supabase = createClient()

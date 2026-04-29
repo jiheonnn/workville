@@ -8,7 +8,11 @@ vi.mock('@/lib/supabase/service-role', () => ({
   createServiceRoleClient: createServiceRoleClientMock,
 }))
 
-const { sendCheckoutReminderNotification, sendSlackNotification, sendWorkSummaryNotification } =
+const {
+  sendAutoStatusNotification,
+  sendSlackNotification,
+  sendWorkSummaryNotification,
+} =
   await import('./notifications')
 
 const createAdminClient = (settings: Record<string, unknown>[]) =>
@@ -121,6 +125,46 @@ describe('Slack team notifications', () => {
     )
   })
 
+  it('자동 퇴근 요약에는 자동 처리 안내 문구를 포함합니다', async () => {
+    createServiceRoleClientMock.mockReturnValue(
+      createAdminClient([
+        {
+          id: 'setting-1',
+          team_id: 'team-1',
+          webhook_url: 'https://hooks.slack.com/services/team-1',
+          is_enabled: true,
+          notify_status_changes: true,
+          notify_work_summaries: true,
+          notify_checkout_reminders: true,
+        },
+      ])
+    )
+
+    const result = await sendWorkSummaryNotification('team-1', '지헌', 180, 240, null, {
+      automaticCheckout: true,
+    })
+
+    expect(result).toBe(true)
+    expect(fetch).toHaveBeenCalledWith(
+      'https://hooks.slack.com/services/team-1',
+      expect.objectContaining({
+        body: expect.stringContaining('자동 퇴근 처리'),
+      })
+    )
+    expect(fetch).toHaveBeenCalledWith(
+      'https://hooks.slack.com/services/team-1',
+      expect.objectContaining({
+        body: expect.stringContaining('근무 시간: 3시간 0분'),
+      })
+    )
+    expect(fetch).toHaveBeenCalledWith(
+      'https://hooks.slack.com/services/team-1',
+      expect.objectContaining({
+        body: expect.stringContaining('휴식 시간: 4시간 0분'),
+      })
+    )
+  })
+
   it('퇴근 요약 알림 토글이 꺼져 있으면 요약 알림을 보내지 않습니다', async () => {
     createServiceRoleClientMock.mockReturnValue(
       createAdminClient([
@@ -142,50 +186,7 @@ describe('Slack team notifications', () => {
     expect(fetch).not.toHaveBeenCalled()
   })
 
-  it('퇴근 리마인드 토글이 켜져 있으면 팀 webhook URL로 리마인드를 전송합니다', async () => {
-    createServiceRoleClientMock.mockReturnValue(
-      createAdminClient([
-        {
-          id: 'setting-1',
-          team_id: 'team-1',
-          webhook_url: 'https://hooks.slack.com/services/team-1',
-          is_enabled: true,
-          notify_status_changes: true,
-          notify_work_summaries: true,
-          notify_checkout_reminders: true,
-        },
-      ])
-    )
-
-    const result = await sendCheckoutReminderNotification('team-1', {
-      username: '지헌',
-      checkInTime: '09:00',
-      elapsedTime: '12시간 30분',
-    })
-
-    expect(result).toBe('sent')
-    expect(fetch).toHaveBeenCalledWith(
-      'https://hooks.slack.com/services/team-1',
-      expect.objectContaining({
-        method: 'POST',
-        body: expect.stringContaining('퇴근을 잊으신 것 같아요'),
-      })
-    )
-    expect(fetch).toHaveBeenCalledWith(
-      'https://hooks.slack.com/services/team-1',
-      expect.objectContaining({
-        body: expect.stringContaining('09:00'),
-      })
-    )
-    expect(fetch).toHaveBeenCalledWith(
-      'https://hooks.slack.com/services/team-1',
-      expect.objectContaining({
-        body: expect.stringContaining('12시간 30분'),
-      })
-    )
-  })
-
-  it('퇴근 리마인드 토글이 꺼져 있으면 리마인드를 보내지 않습니다', async () => {
+  it('자동 상태 처리 안내 토글이 꺼져 있으면 자동 처리 안내를 보내지 않습니다', async () => {
     createServiceRoleClientMock.mockReturnValue(
       createAdminClient([
         {
@@ -200,17 +201,18 @@ describe('Slack team notifications', () => {
       ])
     )
 
-    const result = await sendCheckoutReminderNotification('team-1', {
+    const result = await sendAutoStatusNotification('team-1', {
       username: '지헌',
-      checkInTime: '09:00',
-      elapsedTime: '12시간 30분',
+      action: 'break',
+      effectiveTime: '16:00',
+      inactiveHours: 2,
     })
 
     expect(result).toBe('skipped')
     expect(fetch).not.toHaveBeenCalled()
   })
 
-  it('퇴근 리마인드 Slack 발송이 실패하면 failed를 반환합니다', async () => {
+  it('자동 상태 처리 안내 Slack 발송이 실패하면 failed를 반환합니다', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404, statusText: 'Not Found' })))
     createServiceRoleClientMock.mockReturnValue(
       createAdminClient([
@@ -226,12 +228,44 @@ describe('Slack team notifications', () => {
       ])
     )
 
-    const result = await sendCheckoutReminderNotification('team-1', {
+    const result = await sendAutoStatusNotification('team-1', {
       username: '지헌',
-      checkInTime: '09:00',
-      elapsedTime: '12시간 30분',
+      action: 'checkout',
+      effectiveTime: '16:00',
+      inactiveHours: 6,
     })
 
     expect(result).toBe('failed')
+  })
+
+  it('자동 상태 처리 안내는 자동 처리 안내 토글을 사용합니다', async () => {
+    createServiceRoleClientMock.mockReturnValue(
+      createAdminClient([
+        {
+          id: 'setting-1',
+          team_id: 'team-1',
+          webhook_url: 'https://hooks.slack.com/services/team-1',
+          is_enabled: true,
+          notify_status_changes: true,
+          notify_work_summaries: true,
+          notify_checkout_reminders: true,
+        },
+      ])
+    )
+
+    const result = await sendAutoStatusNotification('team-1', {
+      username: '지헌',
+      action: 'checkout',
+      effectiveTime: '16:00',
+      inactiveHours: 6,
+    })
+
+    expect(result).toBe('sent')
+    expect(fetch).toHaveBeenCalledWith(
+      'https://hooks.slack.com/services/team-1',
+      expect.objectContaining({
+        body: expect.stringContaining('자동 퇴근 처리되었습니다'),
+      })
+    )
   })
 })

@@ -142,7 +142,7 @@ export default function TeamSlackNotificationSettings({
               className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
               disabled={isLoading || isSaving}
             />
-            12시간 퇴근 리마인드
+            자동 휴식/퇴근 안내
           </label>
         </div>
 

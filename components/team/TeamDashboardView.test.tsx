@@ -78,7 +78,7 @@ const createViewProps = (): ComponentProps<typeof TeamDashboardView> => ({
   onToggleRecordPermission: vi.fn(async () => {}),
   onLeaveTeam: vi.fn(async () => {}),
   onCancelInvite: vi.fn(async () => {}),
-  slackNotificationSettings: <div>Slack 알림 설정 12시간 퇴근 리마인드</div>,
+  slackNotificationSettings: <div>Slack 알림 설정 자동 휴식/퇴근 안내</div>,
 })
 
 describe('TeamDashboardView', () => {
@@ -174,7 +174,7 @@ describe('TeamDashboardView', () => {
     const html = renderToStaticMarkup(<TeamDashboardView {...createViewProps()} />)
 
     expect(html).toContain('Slack 알림 설정')
-    expect(html).toContain('12시간 퇴근 리마인드')
+    expect(html).toContain('자동 휴식/퇴근 안내')
   })
 
   it('일반 팀원 화면에서는 기록 관리 권한 토글을 렌더하지 않습니다', () => {

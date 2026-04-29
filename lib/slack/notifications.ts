@@ -25,10 +25,11 @@ interface TeamSlackNotificationSetting {
   notify_checkout_reminders: boolean
 }
 
-interface CheckoutReminderData {
+interface AutoStatusData {
   username: string
-  checkInTime: string
-  elapsedTime: string
+  action: 'break' | 'checkout'
+  effectiveTime: string
+  inactiveHours: number
 }
 
 const STATUS_EMOJI = {
@@ -170,7 +171,8 @@ export async function sendWorkSummaryNotification(
   username: string,
   durationMinutes: number,
   breakMinutes: number,
-  workLog?: any
+  workLog?: any,
+  options?: { automaticCheckout?: boolean }
 ): Promise<boolean> {
   const setting = await getTeamSlackSetting(teamId, 'work_summary')
 
@@ -200,7 +202,9 @@ export async function sendWorkSummaryNotification(
       }
     }
 
-    let message = `📊 *${username}*님의 오늘 근무 요약\n   • 근무 시간: ${workTimeText}${breakTimeText}`
+    let message = options?.automaticCheckout
+      ? `📊 *${username}*님의 오늘 근무 요약 (자동 퇴근 처리)\n   • 근무 시간: ${workTimeText}${breakTimeText}\n   • 안내: 6시간 동안 활동이 없어 자동 퇴근 처리되었습니다. 필요하면 업무기록에서 수정하세요.`
+      : `📊 *${username}*님의 오늘 근무 요약\n   • 근무 시간: ${workTimeText}${breakTimeText}`
     
     if (workLog) {
       try {
@@ -257,17 +261,24 @@ export async function sendWorkSummaryNotification(
   }
 }
 
-function formatCheckoutReminderMessage(data: CheckoutReminderData) {
+function formatAutoStatusMessage(data: AutoStatusData) {
+  const actionText = data.action === 'break' ? '자동 휴식' : '자동 퇴근'
+  const reasonText =
+    data.action === 'break'
+      ? `${data.inactiveHours}시간 동안 활동이 없어 자동 휴식 처리되었습니다.`
+      : `${data.inactiveHours}시간 동안 활동이 없어 자동 퇴근 처리되었습니다.`
+
   return [
-    `⏰ *${data.username}*님, 퇴근을 잊으신 것 같아요.`,
-    `   • 출근 시각: ${data.checkInTime}`,
-    `   • 경과 시간: ${data.elapsedTime}`,
+    `ℹ️ *${data.username}*님이 ${actionText} 처리되었습니다.`,
+    `   • 처리 시각: ${data.effectiveTime}`,
+    `   • 사유: ${reasonText}`,
+    `   • 필요하면 업무기록에서 수정할 수 있습니다.`,
   ].join('\n')
 }
 
-export async function sendCheckoutReminderNotification(
+export async function sendAutoStatusNotification(
   teamId: string,
-  data: CheckoutReminderData
+  data: AutoStatusData
 ): Promise<SlackNotificationDeliveryResult> {
   const setting = await getTeamSlackSetting(teamId, 'checkout_reminder')
 
@@ -276,9 +287,9 @@ export async function sendCheckoutReminderNotification(
   }
 
   const payload: SlackMessage = {
-    text: formatCheckoutReminderMessage(data),
+    text: formatAutoStatusMessage(data),
     username: 'Workville 알림봇',
-    icon_emoji: ':alarm_clock:',
+    icon_emoji: ':information_source:',
   }
 
   const ok = await postSlackMessage(setting.webhook_url, payload)

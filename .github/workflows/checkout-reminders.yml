@@ -1,22 +1,22 @@
-name: Checkout reminders
+name: Automatic status cleanup
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '13,43 * * * *'
   workflow_dispatch:
 
 permissions: {}
 
 jobs:
-  call-checkout-reminders:
+  call-auto-status-cleanup:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Trigger checkout reminder cron API
+      - name: Trigger automatic status cleanup cron API
         run: |
           curl --fail --show-error --silent --max-time 25 --retry 2 --retry-all-errors \
             --header "Authorization: Bearer $CRON_SECRET" \
-            "$CHECKOUT_REMINDERS_URL"
+            "$AUTO_STATUS_CLEANUP_URL"
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          CHECKOUT_REMINDERS_URL: https://workville.site/api/cron/checkout-reminders
+          AUTO_STATUS_CLEANUP_URL: https://workville.site/api/cron/checkout-reminders

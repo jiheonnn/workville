@@ -178,6 +178,7 @@ export interface UserStatusRecord {
   user_id: string;
   status: UserStatus;
   last_updated: string;
+  last_activity_at: string | null;
 }
 
 export interface WorkLog {

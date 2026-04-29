@@ -355,7 +355,8 @@ export async function POST(request: NextRequest) {
         .from('user_status')
         .update({
           status,
-          last_updated: now
+          last_updated: now,
+          last_activity_at: now
         })
         .eq('team_id', activeTeamId)
         .eq('user_id', userId)
@@ -368,7 +369,8 @@ export async function POST(request: NextRequest) {
           team_id: activeTeamId,
           user_id: userId,
           status,
-          last_updated: now
+          last_updated: now,
+          last_activity_at: now
         })
       statusError = error
     }
