@@ -6,6 +6,12 @@ import WorkLogConfirmModal from '@/components/work-log/WorkLogConfirmModal'
 import VillageStatusSegmentedControl from '@/components/village/VillageStatusSegmentedControl'
 import VillageWorkLogPanel from '@/components/village/VillageWorkLogPanel'
 import { useVillageStatusController } from '@/hooks/useVillageStatusController'
+import {
+  VILLAGE_MAP_COLUMN_CLASS_NAME,
+  VILLAGE_PAGE_CONTAINER_CLASS_NAME,
+  VILLAGE_PAGE_GRID_CLASS_NAME,
+  VILLAGE_WORK_LOG_COLUMN_CLASS_NAME,
+} from '@/lib/village/page-layout'
 
 const VillageMap = dynamic(() => import('@/components/village/VillageMap'), {
   loading: () => <div className="w-full h-[500px] bg-white rounded-2xl shadow-xl animate-pulse" />
@@ -50,9 +56,9 @@ export default function VillagePage() {
         />
       ) : null}
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
-          <div className="xl:col-span-3">
+      <div className={VILLAGE_PAGE_CONTAINER_CLASS_NAME}>
+        <div className={VILLAGE_PAGE_GRID_CLASS_NAME}>
+          <div className={VILLAGE_MAP_COLUMN_CLASS_NAME}>
             <VillageMap
               footer={
                 <VillageStatusSegmentedControl
@@ -62,7 +68,7 @@ export default function VillagePage() {
               }
             />
           </div>
-          <div className="xl:col-span-2">
+          <div className={VILLAGE_WORK_LOG_COLUMN_CLASS_NAME}>
             <VillageWorkLogPanel
               error={error}
               summaryLabel={statusSummary.label}

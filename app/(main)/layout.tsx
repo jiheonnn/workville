@@ -10,6 +10,7 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { useActivityPing } from '@/hooks/useActivityPing'
 import { getCharacterImagePath } from '@/lib/character-utils'
 import { MAIN_NAV_ITEMS } from '@/lib/navigation/main-nav'
+import { getMainContentClassName } from '@/lib/navigation/main-content-layout'
 import { shouldHideMainNavigation } from '@/lib/navigation/layout-visibility'
 
 export default function MainLayout({
@@ -154,7 +155,7 @@ export default function MainLayout({
       )}
 
       {/* Main Content */}
-      <main className={`max-w-7xl mx-auto animate-fadeIn ${hideMainNavigation ? 'py-12 px-4 sm:px-6 lg:px-8' : 'py-8 sm:px-6 lg:px-8 pb-20 sm:pb-8'}`}>
+      <main className={getMainContentClassName({ pathname, hideMainNavigation })}>
         {children}
       </main>
 

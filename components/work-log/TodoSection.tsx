@@ -1,7 +1,76 @@
 'use client'
 
-import { useState, memo } from 'react'
-import { useWorkLogStore, TodoItem } from '@/lib/stores/work-log-store'
+import { memo, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
+import { useWorkLogStore } from '@/lib/stores/work-log-store'
+
+export const TODO_TEXTAREA_MIN_HEIGHT_PX = 24
+export const TODO_TEXTAREA_MAX_HEIGHT_PX = 72
+
+export const TODO_TEXTAREA_CLASS_NAME =
+  'flex-1 min-h-[24px] max-h-[72px] resize-none overflow-y-auto whitespace-pre-wrap break-words bg-transparent text-gray-700 outline-none leading-6 placeholder-gray-400'
+
+export const COMPLETED_TODO_TEXT_CLASS_NAME =
+  'flex-1 max-h-[72px] overflow-y-auto whitespace-pre-wrap break-words text-gray-600 line-through leading-6'
+
+export function resizeTodoTextarea(textarea: HTMLTextAreaElement) {
+  textarea.style.height = 'auto'
+
+  const nextHeight = Math.min(
+    Math.max(textarea.scrollHeight, TODO_TEXTAREA_MIN_HEIGHT_PX),
+    TODO_TEXTAREA_MAX_HEIGHT_PX
+  )
+
+  // 이유: 3줄을 넘는 할 일이 전체 카드 높이를 계속 밀어내지 않도록 textarea 내부 스크롤로 넘깁니다.
+  textarea.style.height = `${nextHeight}px`
+  textarea.style.overflowY =
+    textarea.scrollHeight > TODO_TEXTAREA_MAX_HEIGHT_PX ? 'auto' : 'hidden'
+}
+
+interface TodoTextareaProps {
+  value: string
+  placeholder: string
+  onChange: (value: string) => void
+  onEnterWithoutShift?: () => void
+}
+
+function TodoTextarea({
+  value,
+  placeholder,
+  onChange,
+  onEnterWithoutShift,
+}: TodoTextareaProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useLayoutEffect(() => {
+    if (textareaRef.current) {
+      resizeTodoTextarea(textareaRef.current)
+    }
+  }, [value])
+
+  const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
+    resizeTodoTextarea(event.currentTarget)
+    onChange(event.currentTarget.value)
+  }
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey && onEnterWithoutShift) {
+      event.preventDefault()
+      onEnterWithoutShift()
+    }
+  }
+
+  return (
+    <textarea
+      ref={textareaRef}
+      rows={1}
+      value={value}
+      onChange={handleChange}
+      onKeyDown={handleKeyDown}
+      placeholder={placeholder}
+      className={TODO_TEXTAREA_CLASS_NAME}
+    />
+  )
+}
 
 const TodoSection = memo(function TodoSection() {
   const [newTodoText, setNewTodoText] = useState('')
@@ -17,13 +86,6 @@ const TodoSection = memo(function TodoSection() {
     if (newTodoText.trim()) {
       addTodo(newTodoText.trim())
       setNewTodoText('')
-    }
-  }
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleAddTodo()
     }
   }
 
@@ -64,16 +126,14 @@ const TodoSection = memo(function TodoSection() {
                       어제 못한일
                     </span>
                   )}
-                  <input
-                    type="text"
+                  <TodoTextarea
                     value={displayText}
-                    onChange={(e) => {
+                    onChange={(value) => {
                       const newText = isCarriedOver 
-                        ? `[어제 못한일] ${e.target.value}`
-                        : e.target.value
+                        ? `[어제 못한일] ${value}`
+                        : value
                       updateTodoText(todo.id, newText)
                     }}
-                    className="flex-1 bg-transparent outline-none text-gray-700"
                     placeholder="할 일을 입력하세요"
                   />
                 </div>
@@ -94,13 +154,11 @@ const TodoSection = memo(function TodoSection() {
             <div className="w-5 h-5 flex items-center justify-center">
               <span className="text-blue-500 text-xl">+</span>
             </div>
-            <input
-              type="text"
+            <TodoTextarea
               value={newTodoText}
-              onChange={(e) => setNewTodoText(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onChange={setNewTodoText}
+              onEnterWithoutShift={handleAddTodo}
               placeholder="새로운 할 일 추가..."
-              className="flex-1 bg-transparent outline-none text-gray-700 placeholder-gray-400"
             />
             {newTodoText && (
               <button
@@ -136,7 +194,7 @@ const TodoSection = memo(function TodoSection() {
                   onChange={() => toggleTodo(todo.id)}
                   className="mt-1 w-5 h-5 text-green-600 rounded focus:ring-green-500 cursor-pointer"
                 />
-                <span className="flex-1 text-gray-600 line-through">
+                <span className={COMPLETED_TODO_TEXT_CLASS_NAME}>
                   {todo.text}
                 </span>
                 <button
