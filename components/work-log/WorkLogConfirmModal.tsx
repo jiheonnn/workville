@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useWorkLogStore } from '@/lib/stores/work-log-store'
 import { getTodayKorea } from '@/lib/utils/date'
+import type { TodoItem } from '@/types/database'
+import PriorityTodoGroups from './PriorityTodoGroups'
 
 interface WorkLogConfirmModalProps {
   isOpen: boolean
@@ -11,8 +13,8 @@ interface WorkLogConfirmModalProps {
 }
 
 interface WorkLog {
-  todos: Array<{ text: string; completed: boolean }>
-  completed_todos: Array<{ text: string }>
+  todos: TodoItem[]
+  completed_todos: TodoItem[]
   roi_high: string
   roi_low: string
   tomorrow_priority: string
@@ -21,6 +23,68 @@ interface WorkLog {
 
 interface WorkLogApiItem extends WorkLog {
   date: string
+}
+
+export function WorkLogConfirmContent({ workLog }: { workLog: WorkLog }) {
+  return (
+    <div className="space-y-6">
+      {/* 오늘 할 일 */}
+      {workLog.todos && workLog.todos.length > 0 && (
+        <div className="bg-blue-50 rounded-xl p-4">
+          <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+            ✈️ 오늘 할 일
+          </h3>
+          <PriorityTodoGroups todos={workLog.todos} completed={false} />
+        </div>
+      )}
+
+      {/* 완료한 일 */}
+      {workLog.completed_todos && workLog.completed_todos.length > 0 && (
+        <div className="bg-green-50 rounded-xl p-4">
+          <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+            ✅ 완료한 일
+          </h3>
+          <PriorityTodoGroups todos={workLog.completed_todos} completed />
+        </div>
+      )}
+
+      {/* ROI 자가 진단 */}
+      {(workLog.roi_high || workLog.roi_low || workLog.tomorrow_priority) && (
+        <div className="bg-yellow-50 rounded-xl p-4">
+          <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+            💡 ROI 자가 진단
+          </h3>
+          <div className="space-y-2 text-gray-700">
+            {workLog.roi_high && (
+              <div>
+                <span className="font-semibold">ROI 높은 일:</span> {workLog.roi_high}
+              </div>
+            )}
+            {workLog.roi_low && (
+              <div>
+                <span className="font-semibold">ROI 낮은 일:</span> {workLog.roi_low}
+              </div>
+            )}
+            {workLog.tomorrow_priority && (
+              <div>
+                <span className="font-semibold">내일 우선순위:</span> {workLog.tomorrow_priority}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 자가 피드백 */}
+      {workLog.feedback && (
+        <div className="bg-purple-50 rounded-xl p-4">
+          <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+            ✅ 자가 피드백
+          </h3>
+          <p className="text-gray-700 whitespace-pre-wrap">{workLog.feedback}</p>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function WorkLogConfirmModal({ isOpen, onClose, onConfirm }: WorkLogConfirmModalProps) {
@@ -135,81 +199,7 @@ export default function WorkLogConfirmModal({ isOpen, onClose, onConfirm }: Work
               <div className="h-32 bg-gray-100 rounded-xl" />
             </div>
           ) : workLog ? (
-            <div className="space-y-6">
-              {/* 오늘 할 일 */}
-              {workLog.todos && workLog.todos.length > 0 && (
-                <div className="bg-blue-50 rounded-xl p-4">
-                  <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                    ✈️ 오늘 할 일
-                  </h3>
-                  <ul className="space-y-1">
-                    {workLog.todos.map((todo, index) => (
-                      <li key={index} className="flex items-start gap-2 text-gray-700">
-                        <span className="text-gray-400">
-                          {todo.completed ? '☑️' : '☐'}
-                        </span>
-                        <span className={todo.completed ? 'line-through text-gray-500' : ''}>
-                          {todo.text}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* 완료한 일 */}
-              {workLog.completed_todos && workLog.completed_todos.length > 0 && (
-                <div className="bg-green-50 rounded-xl p-4">
-                  <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                    ✅ 완료한 일
-                  </h3>
-                  <ul className="space-y-1">
-                    {workLog.completed_todos.map((todo, index) => (
-                      <li key={index} className="flex items-start gap-2 text-gray-700">
-                        <span>✓</span>
-                        <span>{todo.text}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* ROI 자가 진단 */}
-              {(workLog.roi_high || workLog.roi_low || workLog.tomorrow_priority) && (
-                <div className="bg-yellow-50 rounded-xl p-4">
-                  <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                    💡 ROI 자가 진단
-                  </h3>
-                  <div className="space-y-2 text-gray-700">
-                    {workLog.roi_high && (
-                      <div>
-                        <span className="font-semibold">ROI 높은 일:</span> {workLog.roi_high}
-                      </div>
-                    )}
-                    {workLog.roi_low && (
-                      <div>
-                        <span className="font-semibold">ROI 낮은 일:</span> {workLog.roi_low}
-                      </div>
-                    )}
-                    {workLog.tomorrow_priority && (
-                      <div>
-                        <span className="font-semibold">내일 우선순위:</span> {workLog.tomorrow_priority}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* 자가 피드백 */}
-              {workLog.feedback && (
-                <div className="bg-purple-50 rounded-xl p-4">
-                  <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                    ✅ 자가 피드백
-                  </h3>
-                  <p className="text-gray-700 whitespace-pre-wrap">{workLog.feedback}</p>
-                </div>
-              )}
-            </div>
+            <WorkLogConfirmContent workLog={workLog} />
           ) : (
             <div className="text-center py-12 text-gray-500">
               오늘 작성한 업무일지가 없습니다.

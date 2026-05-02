@@ -87,7 +87,9 @@ describe('POST /api/work-logs', () => {
 
     const body = await response.json()
     expect(body.log.version).toBe(4)
-    expect(body.log.todos).toEqual([{ id: 'todo-new', text: '새 할 일', completed: false, order: 0 }])
+    expect(body.log.todos).toEqual([
+      { id: 'todo-new', text: '새 할 일', completed: false, order: 0, priority: 'normal' },
+    ])
     expect(body.log.completed_todos).toEqual([])
     expect(body.log.feedback).toBe('새 피드백')
   })

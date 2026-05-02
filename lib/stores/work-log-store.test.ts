@@ -171,6 +171,97 @@ describe('useWorkLogStore team transition reset', () => {
   })
 })
 
+describe('useWorkLogStore todo priority', () => {
+  beforeEach(() => {
+    resetStore()
+    vi.restoreAllMocks()
+  })
+
+  it('새 할 일은 기본 우선순위 보통으로 추가합니다', () => {
+    useWorkLogStore.getState().createNewLog('2026-04-23')
+
+    useWorkLogStore.getState().addTodo('새 할 일')
+
+    expect(useWorkLogStore.getState().currentLog?.todos[0]).toMatchObject({
+      text: '새 할 일',
+      priority: 'normal',
+      order: 0,
+    })
+  })
+
+  it('DB에서 불러온 기존 할 일에 priority가 없으면 보통으로 정규화합니다', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        createMockResponse({
+          session: null,
+          workLog: {
+            date: '2026-04-23',
+            todos: [{ id: 'todo-1', text: '기존 할 일', completed: false, order: 0 }],
+            completed_todos: [{ id: 'done-1', text: '기존 완료', completed: true, order: 0 }],
+            roi_high: '',
+            roi_low: '',
+            tomorrow_priority: '',
+            feedback: '',
+          },
+        })
+      )
+    )
+
+    await useWorkLogStore.getState().loadTodayLog('2026-04-23')
+
+    expect(useWorkLogStore.getState().currentLog?.todos[0].priority).toBe('normal')
+    expect(useWorkLogStore.getState().currentLog?.completed_todos[0].priority).toBe('normal')
+  })
+
+  it('할 일을 다른 우선순위 영역으로 옮기고 대상 영역 안 순서를 재계산합니다', () => {
+    useWorkLogStore.setState({
+      currentLog: {
+        date: '2026-04-23',
+        todos: [
+          { id: 'todo-1', text: '높음', completed: false, order: 0, priority: 'high' },
+          { id: 'todo-2', text: '보통 1', completed: false, order: 0, priority: 'normal' },
+          { id: 'todo-3', text: '보통 2', completed: false, order: 1, priority: 'normal' },
+        ],
+        completed_todos: [],
+        roi_high: '',
+        roi_low: '',
+        tomorrow_priority: '',
+        feedback: '',
+      },
+    })
+
+    useWorkLogStore.getState().updateTodoPriorityAndOrder('todo-1', 'normal', 1)
+
+    expect(useWorkLogStore.getState().currentLog?.todos).toEqual([
+      { id: 'todo-2', text: '보통 1', completed: false, order: 0, priority: 'normal' },
+      { id: 'todo-1', text: '높음', completed: false, order: 1, priority: 'normal' },
+      { id: 'todo-3', text: '보통 2', completed: false, order: 2, priority: 'normal' },
+    ])
+    expect(useWorkLogStore.getState().isDirty).toBe(true)
+  })
+
+  it('완료 처리와 미완료 복귀 과정에서 priority를 유지합니다', () => {
+    useWorkLogStore.setState({
+      currentLog: {
+        date: '2026-04-23',
+        todos: [{ id: 'todo-1', text: '중요한 일', completed: false, order: 0, priority: 'high' }],
+        completed_todos: [],
+        roi_high: '',
+        roi_low: '',
+        tomorrow_priority: '',
+        feedback: '',
+      },
+    })
+
+    useWorkLogStore.getState().toggleTodo('todo-1')
+    expect(useWorkLogStore.getState().currentLog?.completed_todos[0].priority).toBe('high')
+
+    useWorkLogStore.getState().toggleTodo('todo-1')
+    expect(useWorkLogStore.getState().currentLog?.todos[0].priority).toBe('high')
+  })
+})
+
 describe('useWorkLogStore flushPendingSave', () => {
   beforeEach(() => {
     resetStore()

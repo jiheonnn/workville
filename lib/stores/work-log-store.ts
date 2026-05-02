@@ -2,12 +2,19 @@ import { create } from 'zustand'
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
 import { getTodayKorea } from '@/lib/utils/date'
 import { buildWorkLogContent } from '@/lib/work-log/content'
+import {
+  DEFAULT_TODO_PRIORITY,
+  moveTodoWithinPriorityGroups,
+  normalizeTodoItems,
+} from '@/lib/work-log/todo-priority'
+import type { TodoPriority } from '@/types/database'
 
 export interface TodoItem {
   id: string
   text: string
   completed: boolean
   order: number
+  priority: TodoPriority
 }
 
 export interface WorkLog {
@@ -49,6 +56,7 @@ interface WorkLogStore {
   moveTodoToCompleted: (id: string) => void
   moveCompletedToTodo: (id: string) => void
   updateTodoText: (id: string, text: string) => void
+  updateTodoPriorityAndOrder: (id: string, priority: TodoPriority, targetIndex: number) => void
   saveToLocalStorage: () => void
   saveToDB: () => Promise<void>
   flushPendingSave: () => Promise<void>
@@ -93,8 +101,8 @@ export const clearPersistedWorkLogState = () => {
 
 const normalizeWorkLog = (workLog: Partial<WorkLog>): WorkLog => ({
   date: workLog.date || getToday(),
-  todos: Array.isArray(workLog.todos) ? workLog.todos : [],
-  completed_todos: Array.isArray(workLog.completed_todos) ? workLog.completed_todos : [],
+  todos: normalizeTodoItems(workLog.todos) as TodoItem[],
+  completed_todos: normalizeTodoItems(workLog.completed_todos) as TodoItem[],
   roi_high: workLog.roi_high || '',
   roi_low: workLog.roi_low || '',
   tomorrow_priority: workLog.tomorrow_priority || '',
@@ -209,7 +217,8 @@ export const useWorkLogStore = create<WorkLogStore>()(
           id: Date.now().toString(),
           text,
           completed: false,
-          order: currentLog.todos.length
+          order: currentLog.todos.length,
+          priority: DEFAULT_TODO_PRIORITY,
         }
 
         set((state) => ({
@@ -303,6 +312,25 @@ export const useWorkLogStore = create<WorkLogStore>()(
             completed_todos: currentLog.completed_todos.map(t => 
               t.id === id ? { ...t, text } : t
             )
+          },
+          isDirty: true,
+          localRevision: state.localRevision + 1,
+        }))
+      },
+
+      updateTodoPriorityAndOrder: (id, priority, targetIndex) => {
+        const { currentLog } = get()
+        if (!currentLog) return
+
+        set((state) => ({
+          currentLog: {
+            ...currentLog,
+            todos: moveTodoWithinPriorityGroups(
+              currentLog.todos,
+              id,
+              priority,
+              targetIndex
+            ) as TodoItem[],
           },
           isDirty: true,
           localRevision: state.localRevision + 1,

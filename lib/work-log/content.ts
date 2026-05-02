@@ -1,4 +1,10 @@
 import type { TodoItem } from '@/types/database'
+import {
+  PRIORITY_ORDER,
+  TODO_PRIORITY_LABELS,
+  groupTodosByPriority,
+  normalizeTodoItems,
+} from './todo-priority'
 
 export interface WorkLogSaveInput {
   content?: string
@@ -20,18 +26,38 @@ export interface NormalizedWorkLogSaveInput {
   feedback: string
 }
 
+const buildPriorityTodoLines = (todos: TodoItem[], checked: boolean) => {
+  const groups = groupTodosByPriority(todos)
+  const marker = checked ? 'x' : ' '
+
+  return PRIORITY_ORDER
+    .map((priority) => {
+      const items = groups[priority]
+      if (items.length === 0) {
+        return ''
+      }
+
+      return [
+        `### ${TODO_PRIORITY_LABELS[priority]}`,
+        ...items.map((todo) => `- [${marker}] ${todo.text}`),
+      ].join('\n')
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+
 export const buildWorkLogContent = ({
   todos,
   completed_todos,
   feedback,
 }: Pick<NormalizedWorkLogSaveInput, 'todos' | 'completed_todos' | 'feedback'>) =>
-  `## ✈️ 오늘 할 일\n${todos.map((todo) => `- [ ] ${todo.text}`).join('\n')}\n\n## ✅ 완료한 일\n${completed_todos.map((todo) => `- [x] ${todo.text}`).join('\n')}\n\n## ✅ 자가 피드백\n${feedback}`
+  `## ✈️ 오늘 할 일\n${buildPriorityTodoLines(todos, false)}\n\n## ✅ 완료한 일\n${buildPriorityTodoLines(completed_todos, true)}\n\n## ✅ 자가 피드백\n${feedback}`
 
 export const normalizeWorkLogSaveInput = (
   input: WorkLogSaveInput
 ): NormalizedWorkLogSaveInput => {
-  const todos = Array.isArray(input.todos) ? input.todos : []
-  const completedTodos = Array.isArray(input.completed_todos) ? input.completed_todos : []
+  const todos = normalizeTodoItems(input.todos)
+  const completedTodos = normalizeTodoItems(input.completed_todos)
   const feedback = typeof input.feedback === 'string' ? input.feedback : ''
   const roiHigh = typeof input.roi_high === 'string' ? input.roi_high : ''
   const roiLow = typeof input.roi_low === 'string' ? input.roi_low : ''

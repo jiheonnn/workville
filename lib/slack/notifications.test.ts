@@ -125,6 +125,43 @@ describe('Slack team notifications', () => {
     )
   })
 
+  it('퇴근 요약의 업무 목록을 우선순위별로 묶어 전송합니다', async () => {
+    createServiceRoleClientMock.mockReturnValue(
+      createAdminClient([
+        {
+          id: 'setting-1',
+          team_id: 'team-1',
+          webhook_url: 'https://hooks.slack.com/services/team-1',
+          is_enabled: true,
+          notify_status_changes: true,
+          notify_work_summaries: true,
+          notify_checkout_reminders: true,
+        },
+      ])
+    )
+
+    const result = await sendWorkSummaryNotification('team-1', '지헌', 125, 0, {
+      todos: [
+        { id: 'todo-1', text: '중요한 일', completed: false, order: 0, priority: 'high' },
+        { id: 'todo-2', text: '기본 일', completed: false, order: 0, priority: 'normal' },
+      ],
+      completed_todos: [
+        { id: 'done-1', text: '끝낸 낮은 일', completed: true, order: 0, priority: 'low' },
+      ],
+    })
+
+    expect(result).toBe(true)
+    const body = String((fetch as any).mock.calls[0][1].body)
+    expect(body).toContain('*완료한 업무*')
+    expect(body).toContain('*낮음*')
+    expect(body).toContain('끝낸 낮은 일')
+    expect(body).toContain('*진행 중인 업무*')
+    expect(body).toContain('*높음*')
+    expect(body).toContain('중요한 일')
+    expect(body).toContain('*보통*')
+    expect(body).toContain('기본 일')
+  })
+
   it('자동 퇴근 요약에는 자동 처리 안내 문구를 포함합니다', async () => {
     createServiceRoleClientMock.mockReturnValue(
       createAdminClient([

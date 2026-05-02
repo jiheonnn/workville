@@ -1,11 +1,13 @@
 export type CharacterType = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 export type UserStatus = 'working' | 'home' | 'break';
+export type TodoPriority = 'high' | 'normal' | 'low';
 
 export interface TodoItem {
   id: string;
   text: string;
   completed: boolean;
   order?: number;
+  priority?: TodoPriority;
 }
 
 // 앱에서 직접 사용하는 주요 도메인 타입들입니다.

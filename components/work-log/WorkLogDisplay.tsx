@@ -1,10 +1,7 @@
 'use client'
 
-interface TodoItem {
-  id: string
-  text: string
-  completed: boolean
-}
+import type { TodoItem } from '@/types/database'
+import PriorityTodoGroups from './PriorityTodoGroups'
 
 interface WorkLogDisplayProps {
   content?: string
@@ -97,18 +94,7 @@ export default function WorkLogDisplay({
             <h4 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
               ✈️ 오늘 할 일
             </h4>
-            <ul className="space-y-1 text-sm">
-              {todos.map((todo, index) => (
-                <li key={todo.id || index} className="flex items-start gap-2 text-gray-700">
-                  <span className="text-gray-400">
-                    {todo.completed ? '☑️' : '☐'}
-                  </span>
-                  <span className={todo.completed ? 'line-through text-gray-500' : ''}>
-                    {todo.text}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <PriorityTodoGroups todos={todos} completed={false} />
           </div>
         )}
 
@@ -118,14 +104,7 @@ export default function WorkLogDisplay({
             <h4 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
               ✅ 완료한 일
             </h4>
-            <ul className="space-y-1 text-sm">
-              {completed_todos.map((todo, index) => (
-                <li key={todo.id || index} className="flex items-start gap-2 text-gray-700">
-                  <span>✓</span>
-                  <span>{todo.text}</span>
-                </li>
-              ))}
-            </ul>
+            <PriorityTodoGroups todos={completed_todos} completed />
           </div>
         )}
 

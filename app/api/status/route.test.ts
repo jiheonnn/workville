@@ -287,4 +287,97 @@ describe('POST /api/status', () => {
       timestamp: '2026-04-27T14:00:00.000Z',
     })
   })
+
+  it('전날 미완료 할 일을 이월할 때 priority를 유지합니다', async () => {
+    const today = getTodayKorea()
+    const supabase = new MockSupabaseClient({
+      tables: {
+        profiles: [
+          {
+            id: 'user-1',
+            email: 'user-1@example.com',
+            username: '지헌',
+            character_type: 1,
+            level: 1,
+            total_work_hours: 0,
+            active_team_id: 'team-1',
+            created_at: '2026-04-23T00:00:00.000Z',
+          },
+        ],
+        team_members: [
+          {
+            id: 'membership-1',
+            team_id: 'team-1',
+            user_id: 'user-1',
+            role: 'member',
+            status: 'active',
+            can_manage_own_records: false,
+            joined_at: '2026-04-23T00:00:00.000Z',
+            created_at: '2026-04-23T00:00:00.000Z',
+          },
+        ],
+        user_status: [
+          {
+            id: 'status-1',
+            team_id: 'team-1',
+            user_id: 'user-1',
+            status: 'home',
+            last_updated: '2026-04-26T00:00:00.000Z',
+          },
+        ],
+        work_sessions: [
+          {
+            id: 'previous-session',
+            team_id: 'team-1',
+            user_id: 'user-1',
+            date: '2026-04-26',
+            check_in_time: '2026-04-26T00:00:00.000Z',
+            check_out_time: '2026-04-26T01:00:00.000Z',
+            duration_minutes: 60,
+            break_minutes: 0,
+            last_break_start: null,
+          },
+        ],
+        work_logs: [
+          {
+            id: 'previous-log',
+            team_id: 'team-1',
+            user_id: 'user-1',
+            date: '2026-04-26',
+            content: '',
+            todos: [
+              { id: 'todo-1', text: '중요한 미완료', completed: false, order: 0, priority: 'high' },
+            ],
+            completed_todos: [],
+            roi_high: '',
+            roi_low: '',
+            tomorrow_priority: '',
+            feedback: '',
+            version: 1,
+            created_at: '2026-04-26T00:00:00.000Z',
+            updated_at: '2026-04-26T00:00:00.000Z',
+          },
+        ],
+      },
+    })
+    createApiClientMock.mockResolvedValue(supabase)
+
+    const response = await POST(
+      new Request('http://localhost/api/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'working' }),
+      }) as any
+    )
+
+    expect(response.status).toBe(200)
+    const todayLog = supabase
+      .getRows('work_logs')
+      .find((workLog: any) => workLog.date === today)
+    expect(todayLog?.todos[0]).toMatchObject({
+      text: '[어제 못한일] 중요한 미완료',
+      completed: false,
+      priority: 'high',
+    })
+  })
 })

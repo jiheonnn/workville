@@ -1,6 +1,12 @@
 import { UserStatus } from '@/lib/types'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { AUTO_CHECKOUT_THRESHOLD_MINUTES } from '@/lib/work-sessions/auto-status'
+import {
+  PRIORITY_ORDER,
+  TODO_PRIORITY_LABELS,
+  groupTodosByPriority,
+} from '@/lib/work-log/todo-priority'
+import type { TodoItem } from '@/types/database'
 
 interface SlackMessage {
   text: string
@@ -51,6 +57,25 @@ const CHARACTER_EMOJI = [
   '🧑‍🎨', // Character 3
   '👩‍🎨'  // Character 4
 ] as const
+
+function buildPriorityTodoMessage(todos: TodoItem[]) {
+  const groups = groupTodosByPriority(todos)
+
+  return PRIORITY_ORDER
+    .map((priority) => {
+      const priorityTodos = groups[priority]
+      if (priorityTodos.length === 0) {
+        return ''
+      }
+
+      return [
+        `   *${TODO_PRIORITY_LABELS[priority]}*`,
+        ...priorityTodos.map((todo) => `   • ${todo.text}`),
+      ].join('\n')
+    })
+    .filter(Boolean)
+    .join('\n')
+}
 
 async function getTeamSlackSetting(
   teamId: string,
@@ -213,17 +238,13 @@ export async function sendWorkSummaryNotification(
         // 완료된 할 일 추가
         if (workLog.completed_todos && workLog.completed_todos.length > 0) {
           message += '\n\n✅ *완료한 업무*'
-          workLog.completed_todos.forEach((todo: any) => {
-            message += `\n   • ${todo.text}`
-          })
+          message += `\n${buildPriorityTodoMessage(workLog.completed_todos)}`
         }
         
         // 미완료 할 일 추가
         if (workLog.todos && workLog.todos.length > 0) {
           message += '\n\n⏳ *진행 중인 업무*'
-          workLog.todos.forEach((todo: any) => {
-            message += `\n   • ${todo.text}`
-          })
+          message += `\n${buildPriorityTodoMessage(workLog.todos)}`
         }
         
         // ROI 평가 추가
