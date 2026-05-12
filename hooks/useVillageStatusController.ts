@@ -146,11 +146,11 @@ export function useVillageStatusController() {
             }
           }
 
-          const { setCheckInDate } = await import('@/lib/stores/work-log-store').then(
+          const { syncAfterCheckIn } = await import('@/lib/stores/work-log-store').then(
             (module) => module.useWorkLogStore.getState()
           )
 
-          setCheckInDate(checkInDate)
+          await syncAfterCheckIn(checkInDate)
         } catch (initializeError) {
           console.error('Failed to initialize work log date:', initializeError)
         }

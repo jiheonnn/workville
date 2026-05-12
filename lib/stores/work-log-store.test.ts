@@ -171,6 +171,109 @@ describe('useWorkLogStore team transition reset', () => {
   })
 })
 
+describe('useWorkLogStore check-in sync', () => {
+  beforeEach(() => {
+    resetStore()
+    vi.restoreAllMocks()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('출근 직후 같은 날짜의 빈 로그를 들고 있어도 DB의 이월 할 일로 다시 동기화합니다', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        createMockResponse({
+          session: {
+            active: { date: '2026-04-23' },
+            last: { date: '2026-04-23' },
+            date: '2026-04-23',
+          },
+          workLog: {
+            id: 'log-1',
+            date: '2026-04-23',
+            todos: [
+              {
+                id: 'carried-1',
+                text: '[어제 못한일] 정산 마무리',
+                completed: false,
+                order: 0,
+                priority: 'high',
+              },
+            ],
+            completed_todos: [],
+            roi_high: '',
+            roi_low: '',
+            tomorrow_priority: '',
+            feedback: '',
+          },
+        })
+      )
+    )
+
+    useWorkLogStore.setState({
+      currentLog: {
+        date: '2026-04-23',
+        todos: [],
+        completed_todos: [],
+        roi_high: '',
+        roi_low: '',
+        tomorrow_priority: '',
+        feedback: '',
+      },
+      isDirty: false,
+    })
+
+    await useWorkLogStore.getState().syncAfterCheckIn('2026-04-23')
+
+    expect(fetch).toHaveBeenCalledWith('/api/work-logs/today?date=2026-04-23')
+    expect(useWorkLogStore.getState().checkInDate).toBe('2026-04-23')
+    expect(useWorkLogStore.getState().currentLog?.todos).toEqual([
+      {
+        id: 'carried-1',
+        text: '[어제 못한일] 정산 마무리',
+        completed: false,
+        order: 0,
+        priority: 'high',
+      },
+    ])
+  })
+
+  it('출근 직전 사용자가 수정 중인 업무일지가 있으면 DB 재조회로 덮어쓰지 않습니다', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+
+    useWorkLogStore.setState({
+      currentLog: {
+        date: '2026-04-23',
+        todos: [
+          {
+            id: 'local-1',
+            text: '작성 중인 로컬 할 일',
+            completed: false,
+            order: 0,
+            priority: 'normal',
+          },
+        ],
+        completed_todos: [],
+        roi_high: '',
+        roi_low: '',
+        tomorrow_priority: '',
+        feedback: '',
+      },
+      isDirty: true,
+    })
+
+    await useWorkLogStore.getState().syncAfterCheckIn('2026-04-23')
+
+    expect(fetch).not.toHaveBeenCalled()
+    expect(useWorkLogStore.getState().checkInDate).toBe('2026-04-23')
+    expect(useWorkLogStore.getState().currentLog?.todos[0].text).toBe('작성 중인 로컬 할 일')
+    expect(useWorkLogStore.getState().isDirty).toBe(true)
+  })
+})
+
 describe('useWorkLogStore todo priority', () => {
   beforeEach(() => {
     resetStore()

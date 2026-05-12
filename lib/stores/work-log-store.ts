@@ -63,6 +63,7 @@ interface WorkLogStore {
   clearError: () => void
   setDirty: (dirty: boolean) => void
   setCheckInDate: (date: string) => void
+  syncAfterCheckIn: (date: string) => Promise<void>
   resetForTeamTransition: () => void
 }
 
@@ -468,6 +469,20 @@ export const useWorkLogStore = create<WorkLogStore>()(
       
       setCheckInDate: (date) => {
         set({ checkInDate: date })
+      },
+
+      syncAfterCheckIn: async (date) => {
+        set({ checkInDate: date })
+
+        // 이유:
+        // 출근 API가 전날 미완료 할 일을 DB에 이월해도, 화면은 이미 같은 날짜의 빈 draft를
+        // 들고 있을 수 있습니다. 사용자가 아직 수정하지 않은 상태라면 같은 날짜라도 다시 읽어
+        // 서버가 만든 이월 항목을 즉시 보여주고, 수정 중인 draft는 덮어쓰지 않습니다.
+        if (get().isDirty) {
+          return
+        }
+
+        await get().loadTodayLog(date)
       },
 
       resetForTeamTransition: () => {
